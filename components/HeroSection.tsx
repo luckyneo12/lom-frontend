@@ -9,7 +9,7 @@ interface Post {
   slug: string;
   title: string;
   description?: string;
-  mainImage: string;
+  mainImage?: string;
   createdAt: string;
   readTime?: string;
   featured?: boolean;
@@ -19,10 +19,21 @@ const SearchSection = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Demo image URL
+  const demoImage = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=2070&auto=format&fit=crop";
+
+  // Function to truncate text to 25 words
+  const truncateText = (text: string, wordLimit: number = 25) => {
+    const words = text.split(' ');
+    if (words.length > wordLimit) {
+      return words.slice(0, wordLimit).join(' ') + '...';
+    }
+    return text;
+  };
+
   useEffect(() => {
     const fetchRandomPosts = async () => {
       try {
-        // Get the API URL from environment variable or use fallback
         const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:501';
         const response = await fetch(`${apiUrl}/api/blog`);
         
@@ -33,8 +44,8 @@ const SearchSection = () => {
         
         // Get random 3 posts
         const randomPosts = data
-          .sort(() => 0.5 - Math.random()) // Shuffle array
-          .slice(0, 3); // Get first 3 items
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 3);
         
         setPosts(randomPosts);
       } catch (error) {
@@ -74,7 +85,7 @@ const SearchSection = () => {
           className="relative h-[500px] md:col-span-2 rounded-lg overflow-hidden group"
         >
           <img
-            src={posts[0].mainImage}
+            src={posts[0].mainImage || demoImage}
             alt={posts[0].title}
             className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
           />
@@ -91,7 +102,7 @@ const SearchSection = () => {
           {/* Content */}
           <div className="absolute bottom-6 left-6 right-6 text-white">
             <h1 className="text-2xl md:text-3xl font-bold mb-3">{posts[0].title}</h1>
-            <p className="text-gray-200 text-sm mb-5">{posts[0].description}</p>
+            <p className="text-gray-200 text-sm mb-5">{truncateText(posts[0].description || '')}</p>
             <div className="flex items-center text-xs gap-4 text-gray-200">
               <div className="flex items-center gap-1">
                 <FaRegCalendarAlt />
@@ -118,7 +129,7 @@ const SearchSection = () => {
               className="relative h-[240px] rounded-lg overflow-hidden group"
             >
               <img
-                src={post.mainImage}
+                src={post.mainImage || demoImage}
                 alt={post.title}
                 className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
               />
@@ -128,6 +139,7 @@ const SearchSection = () => {
               {/* Content */}
               <div className="absolute bottom-4 left-4 right-4 text-white">
                 <h2 className="text-lg font-semibold mb-2">{post.title}</h2>
+                <p className="text-sm text-gray-200 mb-2">{truncateText(post.description || '')}</p>
                 <div className="flex items-center text-xs gap-4 text-gray-200">
                   <div className="flex items-center gap-1">
                     <FaRegCalendarAlt />
