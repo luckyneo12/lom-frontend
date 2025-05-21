@@ -1,0 +1,154 @@
+"use client";
+
+import { FaRegClock, FaRegCalendarAlt } from "react-icons/fa";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+interface Post {
+  _id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  mainImage: string;
+  createdAt: string;
+  readTime?: string;
+  featured?: boolean;
+}
+
+const SearchSection = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRandomPosts = async () => {
+      try {
+        // Get the API URL from environment variable or use fallback
+        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:501';
+        const response = await fetch(`${apiUrl}/api/blog`);
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch posts");
+        }
+        const data = await response.json();
+        
+        // Get random 3 posts
+        const randomPosts = data
+          .sort(() => 0.5 - Math.random()) // Shuffle array
+          .slice(0, 3); // Get first 3 items
+        
+        setPosts(randomPosts);
+      } catch (error) {
+        console.error("Error fetching random posts:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRandomPosts();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="px-4 md:px-10 py-6 bg-white">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="h-[500px] md:col-span-2 rounded-lg bg-gray-200 animate-pulse"></div>
+          <div className="flex flex-col gap-6">
+            <div className="h-[240px] rounded-lg bg-gray-200 animate-pulse"></div>
+            <div className="h-[240px] rounded-lg bg-gray-200 animate-pulse"></div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (posts.length === 0) {
+    return null;
+  }
+
+  return (
+    <main className="px-4 md:px-10 py-6 bg-white">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Big Card */}
+        <Link
+          href={`/blog/${posts[0].slug}`}
+          className="relative h-[500px] md:col-span-2 rounded-lg overflow-hidden group"
+        >
+          <img
+            src={posts[0].mainImage}
+            alt={posts[0].title}
+            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+          />
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+
+          {/* Badge */}
+          {posts[0].featured && (
+            <div className="absolute top-3 left-1 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded">
+              Featured Post
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="absolute bottom-6 left-6 right-6 text-white">
+            <h1 className="text-2xl md:text-3xl font-bold mb-3">{posts[0].title}</h1>
+            <p className="text-gray-200 text-sm mb-5">{posts[0].description}</p>
+            <div className="flex items-center text-xs gap-4 text-gray-200">
+              <div className="flex items-center gap-1">
+                <FaRegCalendarAlt />
+                <span>{new Date(posts[0].createdAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: '2-digit'
+                })}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <FaRegClock />
+                <span>{posts[0].readTime || '5 Min read'}</span>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Right Two Small Cards */}
+        <div className="flex flex-col gap-6">
+          {posts.slice(1).map((post) => (
+            <Link
+              key={post._id}
+              href={`/blog/${post.slug}`}
+              className="relative h-[240px] rounded-lg overflow-hidden group"
+            >
+              <img
+                src={post.mainImage}
+                alt={post.title}
+                className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+              />
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+
+              {/* Content */}
+              <div className="absolute bottom-4 left-4 right-4 text-white">
+                <h2 className="text-lg font-semibold mb-2">{post.title}</h2>
+                <div className="flex items-center text-xs gap-4 text-gray-200">
+                  <div className="flex items-center gap-1">
+                    <FaRegCalendarAlt />
+                    <span>{new Date(post.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: '2-digit'
+                    })}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FaRegClock />
+                    <span>{post.readTime || '5 Min read'}</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+};
+
+export default SearchSection;
