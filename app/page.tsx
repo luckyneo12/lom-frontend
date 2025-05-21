@@ -6,6 +6,7 @@ import FeatureBlog from "@/components/Featuredblog";
 import SearchSection from "@/components/HeroSection";
 import BlogSection from "@/components/Latestblog";
 import MarketingBlog from "@/components/Marketingblog";
+import SectionDisplay from "@/components/SectionDisplay";
 
 const Home = () => {
   const [message, setMessage] = useState("Loading...");
@@ -24,14 +25,10 @@ const Home = () => {
     <div>
       <SearchSection />
       <BlogSection />
-      <FeatureBlog />
-      <MarketingBlog />
-      <ExpertSpeak />
+      <SectionDisplay />
+   
 
-      {/* Just for test */}
-      <p style={{ marginTop: "20px", color: "green" }}>
-        Message from backend: {message}
-      </p>
+  
     </div>
   );
 };

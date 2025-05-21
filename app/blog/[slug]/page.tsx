@@ -17,6 +17,7 @@ import {
   FaRegClock,
 } from "react-icons/fa";
 import { RxCross2 } from "react-icons/rx";
+import BlogManagement from '@/components/BlogManagement';
 
 interface BlogPost {
   _id: string;
@@ -55,23 +56,33 @@ export default function BlogPostPage() {
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string>("");
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPost = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${params.slug}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${params.slug}`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          }
         );
+        
         if (!response.ok) {
-          throw new Error("Failed to fetch blog post");
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to fetch blog post");
         }
+        
         const data = await response.json();
         setPost(data.blog);
-      } catch (error) {
-        console.error("Error fetching post:", error);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
         toast({
           title: "Error",
-          description: "Failed to fetch blog post",
+          description: err instanceof Error ? err.message : "Failed to fetch blog post",
           variant: "destructive",
         });
       } finally {
@@ -121,7 +132,7 @@ export default function BlogPostPage() {
     );
   }
 
-  if (!post) {
+  if (error || !post) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
@@ -282,7 +293,15 @@ export default function BlogPostPage() {
         </main>
       </div>
 
-    
+      <BlogManagement 
+        slug={params.slug as string} 
+        onDelete={() => {
+          toast({
+            title: "Success",
+            description: "Blog post deleted successfully",
+          });
+        }}
+      />
     </div>
   );
 } 
