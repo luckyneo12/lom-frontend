@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, FileText, FolderOpen, Home, ImageIcon, Settings, Users } from "lucide-react"
+import { BarChart3, FileText, FolderOpen, Home, ImageIcon, Settings, Users, LayoutGrid } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,11 @@ const sidebarLinks = [
     icon: FileText,
   },
   {
+    title: "Sections",
+    href: "/dashboard/sections",
+    icon: LayoutGrid,
+  },
+  {
     title: "Projects",
     href: "/dashboard/projects",
     icon: FolderOpen,
@@ -28,7 +33,6 @@ const sidebarLinks = [
     href: "/categories",
     icon: FolderOpen,
   },
-  
 ]
 
 export function DashboardSidebar() {

@@ -1,12 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Section } from "@/app/api/sections/route";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2, Search, Edit, Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Pencil } from "lucide-react";
+
+interface Section {
+  _id: string;
+  title: string;
+  category?: string;
+  limit: number;
+  order: number;
+  display_style: "grid" | "list" | "carousel";
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function SectionsPage() {
+  const router = useRouter();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sectionToDelete, setSectionToDelete] = useState<Section | null>(null);
 
   useEffect(() => {
     fetchSections();
@@ -14,202 +59,198 @@ export default function SectionsPage() {
 
   const fetchSections = async () => {
     try {
-      const response = await fetch("/api/sections");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections`,
+        {
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch sections");
+      }
+
       const data = await response.json();
       setSections(data);
     } catch (error) {
       console.error("Error fetching sections:", error);
+      toast.error("Failed to load sections");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (section: Section) => {
-    setEditingSection(section);
-  };
-
-  const handleDelete = async (sectionId: string) => {
-    if (confirm("Are you sure you want to delete this section?")) {
-      try {
-        const response = await fetch(`/api/sections/${sectionId}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          fetchSections();
-        }
-      } catch (error) {
-        console.error("Error deleting section:", error);
-      }
-    }
-  };
-
-  const handleToggle = async (sectionId: string, currentStatus: boolean) => {
+  const handleDelete = async (section: Section) => {
     try {
-      const response = await fetch(`/api/sections/${sectionId}/toggle`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isActive: !currentStatus }),
-      });
-      if (response.ok) {
-        fetchSections();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections/${section._id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete section");
       }
+
+      toast.success("Section deleted successfully");
+      setSections(sections.filter(s => s._id !== section._id));
     } catch (error) {
-      console.error("Error toggling section:", error);
+      console.error("Error deleting section:", error);
+      toast.error("Failed to delete section");
+    } finally {
+      setSectionToDelete(null);
     }
   };
+
+  const handleToggleActive = async (section: Section) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections/${section._id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ active: !section.active }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update section");
+      }
+
+      setSections(sections.map(s => 
+        s._id === section._id ? { ...s, active: !s.active } : s
+      ));
+      toast.success(`Section ${section.active ? "deactivated" : "activated"} successfully`);
+    } catch (error) {
+      console.error("Error updating section:", error);
+      toast.error("Failed to update section status");
+    }
+  };
+
+  const filteredSections = sections.filter(section =>
+    section.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Manage Sections</h1>
-        <button
-          onClick={() => setEditingSection({} as Section)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Add New Section
-        </button>
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Sections</h1>
+        <Button onClick={() => router.push("/dashboard/sections/create")}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Section
+        </Button>
       </div>
 
-      <div className="grid gap-4">
-        {sections.map((section) => (
-          <div
-            key={section._id}
-            className="bg-white p-4 rounded-lg shadow flex justify-between items-center"
-          >
-            <div>
-              <h3 className="font-semibold">{section.title}</h3>
-              <p className="text-gray-600">{section.description}</p>
-              <div className="text-sm text-gray-500 mt-1">
-                Type: {section.type} | Style: {section.displayStyle} | Limit: {section.limit}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search sections..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredSections.map((section) => (
+          <Card key={section._id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>{section.title}</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleActive(section)}
+                >
+                  {section.active ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleEdit(section)}
-                className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(section._id!)}
-                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => handleToggle(section._id!, section.isActive)}
-                className={`${
-                  section.isActive ? "bg-green-500" : "bg-gray-500"
-                } text-white px-3 py-1 rounded hover:opacity-90`}
-              >
-                {section.isActive ? "Active" : "Inactive"}
-              </button>
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {section.category && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Category:</span>
+                    <span className="font-medium">{section.category}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Display Style:</span>
+                  <span className="font-medium">{section.display_style}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Limit:</span>
+                  <span className="font-medium">{section.limit}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Order:</span>
+                  <span className="font-medium">{section.order}</span>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/dashboard/sections/edit/${section._id}`)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setSectionToDelete(section)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      {/* Edit/Add Section Modal */}
-      {editingSection && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingSection._id ? "Edit Section" : "Add New Section"}
-            </h2>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Title</label>
-                <input
-                  type="text"
-                  value={editingSection.title}
-                  onChange={(e) =>
-                    setEditingSection({ ...editingSection, title: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <input
-                  type="text"
-                  value={editingSection.description}
-                  onChange={(e) =>
-                    setEditingSection({ ...editingSection, description: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Type</label>
-                <select
-                  value={editingSection.type}
-                  onChange={(e) =>
-                    setEditingSection({ ...editingSection, type: e.target.value as Section['type'] })
-                  }
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="featured">Featured</option>
-                  <option value="latest">Latest</option>
-                  <option value="category">Category</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Display Style</label>
-                <select
-                  value={editingSection.displayStyle}
-                  onChange={(e) =>
-                    setEditingSection({
-                      ...editingSection,
-                      displayStyle: e.target.value as Section['displayStyle'],
-                    })
-                  }
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="grid">Grid</option>
-                  <option value="list">List</option>
-                  <option value="carousel">Carousel</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Limit</label>
-                <input
-                  type="number"
-                  value={editingSection.limit}
-                  onChange={(e) =>
-                    setEditingSection({
-                      ...editingSection,
-                      limit: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingSection(null)}
-                  className="px-4 py-2 border rounded hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AlertDialog open={!!sectionToDelete} onOpenChange={() => setSectionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the section
+              and remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => sectionToDelete && handleDelete(sectionToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

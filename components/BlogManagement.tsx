@@ -39,7 +39,7 @@ export default function BlogManagement({ slug, onDelete }: BlogManagementProps) 
       const blogId = blogData.blog._id;
 
       // Now delete using the ID
-      const deleteResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/${blogId}`, {
+      const deleteResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${slug}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
