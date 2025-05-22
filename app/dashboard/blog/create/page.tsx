@@ -19,10 +19,8 @@ import {
 import {
   Label,
 } from "@/components/ui/label";
-import {
-  Input,
-  Textarea,
-} from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Button,
 } from "@/components/ui/button";
@@ -49,6 +47,12 @@ import {
 import {
   Loader2,
 } from "lucide-react";
+
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+}
 
 interface Section {
   _id: string;
@@ -120,6 +124,34 @@ export default function CreateBlogPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          credentials: 'include'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch categories");
+      }
+
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -177,6 +209,39 @@ export default function CreateBlogPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addSection = () => {
+    setFormData({
+      ...formData,
+      sections: [
+        ...formData.sections,
+        {
+          section_title: "",
+          section_description: "",
+          section_list: [],
+        },
+      ],
+    });
+  };
+
+  const removeSection = (index: number) => {
+    setFormData({
+      ...formData,
+      sections: formData.sections.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateSection = (index: number, field: string, value: string | string[]) => {
+    const updatedSections = [...formData.sections];
+    updatedSections[index] = {
+      ...updatedSections[index],
+      [field]: value,
+    };
+    setFormData({
+      ...formData,
+      sections: updatedSections,
+    });
   };
 
   return (
