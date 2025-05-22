@@ -293,15 +293,7 @@ export default function BlogPostPage() {
         </main>
       </div>
 
-      <BlogManagement 
-        slug={params.slug as string} 
-        onDelete={() => {
-          toast({
-            title: "Success",
-            description: "Blog post deleted successfully",
-          });
-        }}
-      />
+    
     </div>
   );
 } 
