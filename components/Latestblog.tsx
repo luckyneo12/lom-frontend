@@ -44,16 +44,25 @@ const BlogSection = () => {
       try {
         setLoading(true);
         const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-        const response = await fetch(`${apiUrl}/api/blog`);
+        const response = await fetch(`${apiUrl}/api/blog`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         
         if (!response.ok) {
           throw new Error("Failed to fetch latest blogs");
         }
 
         const data = await response.json();
+        console.log('API Response:', data); // Debug log
+        
+        // Handle both array and object response formats
+        let blogsArray = Array.isArray(data) ? data : data.posts || [];
         
         // Transform the data to include readTime
-        const transformedBlogs = data
+        const transformedBlogs = blogsArray
           .map((blog: any) => ({
             ...blog,
             readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`

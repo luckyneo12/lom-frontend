@@ -63,6 +63,13 @@ interface Category {
   status: "published" | "draft";
 }
 
+interface Section {
+  _id: string;
+  title: string;
+  order: number;
+  isActive: boolean;
+}
+
 const formSchema = z.object({
   mainTitle: z.string().min(5, {
     message: "Main title must be at least 5 characters.",
@@ -75,6 +82,9 @@ const formSchema = z.object({
   }),
   category: z.string({
     required_error: "Please select a category.",
+  }),
+  display_section: z.string({
+    required_error: "Please select a display section.",
   }),
   author: z.string().min(2, {
     message: "Author name must be at least 2 characters.",
@@ -99,6 +109,7 @@ export function BlogEditor() {
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -107,6 +118,7 @@ export function BlogEditor() {
       metaTitle: "",
       metaDescription: "",
       category: "",
+      display_section: "",
       author: "",
       content: "",
       images: [],
@@ -178,6 +190,23 @@ export function BlogEditor() {
     };
 
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const fetchSections = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections`
+        );
+        if (!response.ok) throw new Error("Failed to fetch sections");
+        const data = await response.json();
+        setSections(data.filter((section: Section) => section.isActive));
+      } catch (error) {
+        console.error("Error fetching sections:", error);
+      }
+    };
+
+    fetchSections();
   }, []);
 
   // Add a new title-description pair
@@ -260,6 +289,7 @@ export function BlogEditor() {
       formData.append("title", values.mainTitle);
       formData.append("description", values.content);
       formData.append("category", values.category);
+      formData.append("display_section", values.display_section);
       formData.append("author", values.author);
       formData.append("status", "draft");
       formData.append("featured", "false");
@@ -372,7 +402,7 @@ export function BlogEditor() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 max-w-7xl mx-auto px-4 py-8">
       <AnimatePresence>
         {showSuccess && (
           <motion.div
@@ -400,46 +430,43 @@ export function BlogEditor() {
       </AnimatePresence>
 
       <Tabs defaultValue="edit" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 ">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto mb-8">
           <TabsTrigger
             value="edit"
-            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-black"
+            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-black py-3 text-lg font-medium"
           >
             Edit Post
           </TabsTrigger>
           <TabsTrigger
             value="preview"
-            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-black"
+            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-black py-3 text-lg font-medium"
           >
             Preview
           </TabsTrigger>
         </TabsList>
         <TabsContent value="edit">
           <Card className="border-2 border-yellow-500 shadow-lg">
-            <CardHeader className=" text-yellow-500 p-4 border-b-2 border-yellow-500">
-              <CardTitle>Blog Editor</CardTitle>
+            <CardHeader className="text-yellow-500 p-6 border-b-2 border-yellow-500">
+              <CardTitle className="text-2xl font-bold">Blog Editor</CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 bg-white">
+            <CardContent className="pt-8 bg-white">
               <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-8"
-                >
-                  <div className="grid gap-6 md:grid-cols-2">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                  <div className="grid gap-8 md:grid-cols-2">
                     <div className="space-y-6">
                       <FormField
                         control={form.control}
                         name="mainTitle"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-black font-semibold">
+                            <FormLabel className="text-black font-semibold text-lg">
                               Main Blog Title
                             </FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="Enter main blog title"
                                 {...field}
-                                className="border-2 border-gray-400  "
+                                className="border-2 border-gray-400 h-12 text-lg"
                               />
                             </FormControl>
                             <FormMessage className="text-red-500" />
@@ -452,16 +479,52 @@ export function BlogEditor() {
                         name="author"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-black font-semibold">
+                            <FormLabel className="text-black font-semibold text-lg">
                               Author Name
                             </FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="Enter author name"
                                 {...field}
-                                className="border-2 border-gray-400 "
+                                className="border-2 border-gray-400 h-12"
                               />
                             </FormControl>
+                            <FormMessage className="text-red-500" />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="display_section"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-black font-semibold text-lg">
+                              Display Section <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="border-2 border-gray-400 h-12">
+                                  <SelectValue placeholder="Select a display section" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {sections.map((section) => (
+                                  <SelectItem
+                                    key={section._id}
+                                    value={section._id}
+                                  >
+                                    {section.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription className="text-gray-600 mt-2">
+                              Select where this blog will be displayed on the home page
+                            </FormDescription>
                             <FormMessage className="text-red-500" />
                           </FormItem>
                         )}
@@ -470,43 +533,43 @@ export function BlogEditor() {
                       {/* Additional Title-Description Sections */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-semibold leading-none text-black">
-                            Additional Titles & Descriptions
+                          <label className="text-lg font-semibold leading-none text-black">
+                            Additional Sections
                           </label>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={addTitleDescription}
-                            className="h-8 gap-1 border-gray-400 text-black hover:bg-yellow-500 hover:text-black"
+                            className="h-10 gap-2 border-gray-400 text-black hover:bg-yellow-500 hover:text-black px-4"
                           >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span>Add</span>
+                            <Plus className="h-4 w-4" />
+                            <span>Add Section</span>
                           </Button>
                         </div>
 
                         {titleDescriptions.map((item) => (
                           <div
                             key={item.id}
-                            className="space-y-3 p-3 border-2 border-gray-400 rounded-md relative bg-white"
+                            className="space-y-4 p-6 border-2 border-gray-400 rounded-lg relative bg-white"
                           >
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
                               onClick={() => removeTitleDescription(item.id)}
-                              className="h-6 w-6 absolute top-2 right-2 text-black hover:text-red-500 hover:bg-transparent"
+                              className="h-8 w-8 absolute top-3 right-3 text-black hover:text-red-500 hover:bg-transparent"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-5 w-5" />
                               <span className="sr-only">Remove</span>
                             </Button>
 
                             <div>
-                              <label className="text-sm font-semibold leading-none block mb-2 text-black">
-                                Title
+                              <label className="text-lg font-semibold leading-none block mb-3 text-black">
+                                Section Title
                               </label>
                               <Input
-                                placeholder="Enter title"
+                                placeholder="Enter section title"
                                 value={item.title}
                                 onChange={(e) =>
                                   updateTitleDescription(
@@ -515,16 +578,16 @@ export function BlogEditor() {
                                     e.target.value
                                   )
                                 }
-                                className="border-2 border-gray-400"
+                                className="border-2 border-gray-400 h-12"
                               />
                             </div>
 
                             <div>
-                              <label className="text-sm font-semibold leading-none block mb-2 text-black">
-                                Description
+                              <label className="text-lg font-semibold leading-none block mb-3 text-black">
+                                Section Description
                               </label>
                               <Textarea
-                                placeholder="Enter description"
+                                placeholder="Enter section description"
                                 value={item.description}
                                 onChange={(e) =>
                                   updateTitleDescription(
@@ -533,21 +596,21 @@ export function BlogEditor() {
                                     e.target.value
                                   )
                                 }
-                                className="resize-none border-2 border-gray-400"
+                                className="resize-none border-2 border-gray-400 min-h-[120px]"
                               />
                             </div>
 
                             <div>
-                              <label className="text-sm font-semibold leading-none block mb-2 text-black">
+                              <label className="text-lg font-semibold leading-none block mb-3 text-black">
                                 Section Image
                               </label>
-                              <div className="border-2 border-dashed border-gray-400 rounded-md p-4">
+                              <div className="border-2 border-dashed border-gray-400 rounded-lg p-6">
                                 {item.image ? (
-                                  <div className="relative">
+                                  <div className="relative aspect-video">
                                     <img
                                       src={item.image}
                                       alt="Section image"
-                                      className="w-full h-40 object-cover rounded-md"
+                                      className="w-full h-full object-cover rounded-lg"
                                     />
                                     <Button
                                       type="button"
@@ -560,13 +623,13 @@ export function BlogEditor() {
                                           ""
                                         )
                                       }
-                                      className="absolute top-2 right-2 h-7 w-7 bg-white/80 hover:bg-red-500"
+                                      className="absolute top-3 right-3 h-8 w-8 bg-white/90 hover:bg-red-500"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center justify-center h-40">
+                                  <div className="flex items-center justify-center aspect-video">
                                     <Button
                                       type="button"
                                       variant="outline"
@@ -595,9 +658,9 @@ export function BlogEditor() {
                                         };
                                         fileInput.click();
                                       }}
-                                      className="border-gray-400 text-black hover:bg-yellow-500 hover:text-black"
+                                      className="border-gray-400 text-black hover:bg-yellow-500 hover:text-black h-12 px-6"
                                     >
-                                      <Plus className="h-4 w-4 mr-2" />
+                                      <Plus className="h-5 w-5 mr-2" />
                                       Add Image
                                     </Button>
                                   </div>
@@ -607,18 +670,19 @@ export function BlogEditor() {
                           </div>
                         ))}
                       </div>
+
                       <FormField
                         control={form.control}
                         name="content"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-black font-semibold">
+                            <FormLabel className="text-black font-semibold text-lg">
                               Content
                             </FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder="Write your blog content here..."
-                                className="min-h-[200px] border-2 border-gray-400 "
+                                className="min-h-[300px] border-2 border-gray-400 text-lg"
                                 {...field}
                               />
                             </FormControl>
@@ -626,12 +690,13 @@ export function BlogEditor() {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={form.control}
                         name="category"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-black font-semibold">
+                            <FormLabel className="text-black font-semibold text-lg">
                               Category
                             </FormLabel>
                             <Select
@@ -639,7 +704,7 @@ export function BlogEditor() {
                               defaultValue={field.value}
                             >
                               <FormControl>
-                                <SelectTrigger className="border-2 border-gray-400">
+                                <SelectTrigger className="border-2 border-gray-400 h-12">
                                   <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
                               </FormControl>
@@ -664,7 +729,7 @@ export function BlogEditor() {
                       {/* Multiple Images Section */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-semibold leading-none text-black">
+                          <label className="text-lg font-semibold leading-none text-black">
                             Blog Images
                           </label>
                           <Button
@@ -690,23 +755,23 @@ export function BlogEditor() {
                               };
                               fileInput.click();
                             }}
-                            className="h-8 gap-1 border-gray-400 text-black hover:bg-yellow-500 hover:text-black"
+                            className="h-10 gap-2 border-gray-400 text-black hover:bg-yellow-500 hover:text-black px-4"
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-4 w-4" />
                             <span>Add Image</span>
                           </Button>
                         </div>
 
-                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
                           {images.map((image, index) => (
                             <div
                               key={image.id}
-                              className="relative border-2 border-gray-400 rounded-md overflow-hidden"
+                              className="relative aspect-video border-2 border-gray-400 rounded-lg overflow-hidden group"
                             >
                               <img
                                 src={image.url}
                                 alt={`Blog image ${index + 1}`}
-                                className="w-full h-40 object-cover"
+                                className="w-full h-full object-cover"
                               />
                               <button
                                 type="button"
@@ -715,7 +780,7 @@ export function BlogEditor() {
                                   e.stopPropagation();
                                   removeImage(image.id);
                                 }}
-                                className="absolute top-2 right-2 h-8 w-8 bg-white rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                                className="absolute top-3 right-3 h-8 w-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -724,7 +789,7 @@ export function BlogEditor() {
 
                           {images.length === 0 && (
                             <div className="col-span-full">
-                              <div className="border-2 border-dashed border-gray-400 hover:border-yellow-500">
+                              <div className="border-2 border-dashed border-gray-400 rounded-lg hover:border-yellow-500 transition-colors">
                                 <ImageUploader
                                   image={null}
                                   setImage={(url) => {
@@ -737,23 +802,23 @@ export function BlogEditor() {
                         </div>
                       </div>
 
-                      <div className="p-4 bg-yellow-50 border-2 border-yellow-500 rounded-md">
+                      <div className="p-6 bg-yellow-50 border-2 border-yellow-500 rounded-lg">
                         <FormField
                           control={form.control}
                           name="metaTitle"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-black font-semibold">
+                              <FormLabel className="text-black font-semibold text-lg">
                                 Meta Title
                               </FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="Enter SEO meta title"
                                   {...field}
-                                  className="border-2 border-gray-400 "
+                                  className="border-2 border-gray-400 h-12"
                                 />
                               </FormControl>
-                              <FormDescription className="text-gray-600">
+                              <FormDescription className="text-gray-600 mt-2">
                                 Recommended length: 50-60 characters
                               </FormDescription>
                               <FormMessage className="text-red-500" />
@@ -765,18 +830,18 @@ export function BlogEditor() {
                           control={form.control}
                           name="metaDescription"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-black font-semibold">
+                            <FormItem className="mt-6">
+                              <FormLabel className="text-black font-semibold text-lg">
                                 Meta Description
                               </FormLabel>
                               <FormControl>
                                 <Textarea
                                   placeholder="Enter SEO meta description"
-                                  className="resize-none border-2 border-gray-400 "
+                                  className="resize-none border-2 border-gray-400 min-h-[120px]"
                                   {...field}
                                 />
                               </FormControl>
-                              <FormDescription className="text-gray-600">
+                              <FormDescription className="text-gray-600 mt-2">
                                 Recommended length: 150-160 characters
                               </FormDescription>
                               <FormMessage className="text-red-500" />
@@ -785,16 +850,16 @@ export function BlogEditor() {
                         />
 
                         {/* Meta Tags Section */}
-                        <FormItem className="mt-4">
-                          <FormLabel className="text-black font-semibold">
+                        <FormItem className="mt-6">
+                          <FormLabel className="text-black font-semibold text-lg">
                             Meta Tags
                           </FormLabel>
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap gap-2 mb-2">
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-2">
                               {tags.map((tag) => (
                                 <Badge
                                   key={tag}
-                                  className="bg-black text-yellow-500 px-3 py-1 text-sm font-medium flex items-center gap-1"
+                                  className="bg-black text-yellow-500 px-4 py-2 text-sm font-medium flex items-center gap-2"
                                 >
                                   {tag}
                                   <Button
@@ -802,9 +867,9 @@ export function BlogEditor() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => removeTag(tag)}
-                                    className="h-4 w-4 text-yellow-500 hover:text-white hover:bg-transparent"
+                                    className="h-5 w-5 text-yellow-500 hover:text-white hover:bg-transparent"
                                   >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-4 w-4" />
                                   </Button>
                                 </Badge>
                               ))}
@@ -820,46 +885,45 @@ export function BlogEditor() {
                                     addTag();
                                   }
                                 }}
-                                className="border-2 border-gray-400 "
+                                className="border-2 border-gray-400 h-12"
                               />
                               <Button
                                 type="button"
                                 variant="outline"
                                 onClick={addTag}
-                                className="border-gray-400 text-black hover:bg-yellow-500 hover:text-black"
+                                className="border-gray-400 text-black hover:bg-yellow-500 hover:text-black h-12 px-4"
                                 disabled={!currentTag.trim()}
                               >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-5 w-5" />
                               </Button>
                             </div>
                           </div>
-                          <FormDescription className="text-gray-600">
-                            Add relevant tags to help with SEO (e.g.,
-                            "web-development", "design-tips")
+                          <FormDescription className="text-gray-600 mt-2">
+                            Add relevant tags to help with SEO (e.g., "web-development", "design-tips")
                           </FormDescription>
                         </FormItem>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-4 pt-6">
                     <Button
                       variant="outline"
-                      className="border-gray-400 text-black hover:bg-yellow-500 hover:text-black"
+                      className="border-gray-400 text-black hover:bg-yellow-500 hover:text-black h-12 px-8 text-lg"
                       disabled={submitting}
                     >
                       Save Draft
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-black text-yellow-500 hover:bg-yellow-500 hover:text-black"
+                      className="bg-black text-yellow-500 hover:bg-yellow-500 hover:text-black h-12 px-8 text-lg"
                       disabled={submitting}
                     >
                       {submitting ? (
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"
+                          className="h-6 w-6 border-2 border-yellow-500 border-t-transparent rounded-full"
                         />
                       ) : (
                         "Publish"
@@ -874,27 +938,29 @@ export function BlogEditor() {
 
         <TabsContent value="preview">
           <Card className="border-2 border-yellow-500 shadow-lg">
-            <CardHeader className=" text-yellow-500 p-4 border-b-2 border-yellow-500">
-              <CardTitle>Blog Preview</CardTitle>
+            <CardHeader className="text-yellow-500 p-6 border-b-2 border-yellow-500">
+              <CardTitle className="text-2xl font-bold">Blog Preview</CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 bg-white">
+            <CardContent className="pt-8 bg-white">
               <div className="prose max-w-none dark:prose-invert">
-                <h1 className="text-3xl font-bold text-black mb-4">
+                <h1 className="text-4xl font-bold text-black mb-6">
                   {form.watch("mainTitle") || "Blog Title"}
                 </h1>
 
                 {images.length > 0 && (
-                  <div className="my-6">
-                    <img
-                      src={images[0].url || "/placeholder.svg"}
-                      alt={form.watch("mainTitle") || "Blog image"}
-                      className="rounded-lg max-h-[400px] w-auto object-cover border-2 border-gray-400"
-                    />
+                  <div className="my-8">
+                    <div className="aspect-video relative rounded-lg overflow-hidden">
+                      <img
+                        src={images[0].url || "/placeholder.svg"}
+                        alt={form.watch("mainTitle") || "Blog image"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
-                  <Badge className="bg-yellow-500 text-black">
+                <div className="flex items-center gap-3 text-base text-gray-600 mb-8">
+                  <Badge className="bg-yellow-500 text-black px-4 py-2 text-base">
                     {form.watch("category") || "Category"}
                   </Badge>
                   <span>By {form.watch("author") || "Author"}</span>
@@ -903,51 +969,60 @@ export function BlogEditor() {
                 </div>
 
                 {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-6">
+                  <div className="flex flex-wrap gap-2 mb-8">
                     {tags.map((tag) => (
-                      <Badge key={tag} className="bg-black text-yellow-500">
+                      <Badge key={tag} className="bg-black text-yellow-500 px-4 py-2 text-base">
                         {tag}
                       </Badge>
                     ))}
                   </div>
                 )}
 
-                <div className="text-gray-800 leading-relaxed">
-                  {form.watch("content") ||
-                    "Your blog content will appear here..."}
+                <div className="text-gray-800 leading-relaxed text-lg">
+                  {form.watch("content") || "Your blog content will appear here..."}
                 </div>
 
                 {titleDescriptions.length > 0 && (
-                  <div className="mt-8 space-y-6">
-                    <h2 className="text-2xl font-bold text-black border-b-2 border-yellow-500 pb-2">
+                  <div className="mt-12 space-y-8">
+                    <h2 className="text-3xl font-bold text-black border-b-2 border-yellow-500 pb-3">
                       Additional Sections
                     </h2>
                     {titleDescriptions.map((item) => (
-                      <div key={item.id} className="space-y-2">
-                        <h3 className="text-xl font-semibold text-black">
+                      <div key={item.id} className="space-y-4">
+                        <h3 className="text-2xl font-semibold text-black">
                           {item.title || "Section Title"}
                         </h3>
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 text-lg">
                           {item.description || "Section description..."}
                         </p>
+                        {item.image && (
+                          <div className="aspect-video relative rounded-lg overflow-hidden mt-4">
+                            <img
+                              src={item.image}
+                              alt={item.title || "Section image"}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
 
                 {images.length > 1 && (
-                  <div className="mt-8">
-                    <h2 className="text-2xl font-bold text-black border-b-2 border-yellow-500 pb-2">
+                  <div className="mt-12">
+                    <h2 className="text-3xl font-bold text-black border-b-2 border-yellow-500 pb-3 mb-6">
                       Gallery
                     </h2>
-                    <div className="grid gap-4 grid-cols-2 mt-4">
+                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
                       {images.slice(1).map((image) => (
-                        <img
-                          key={image.id}
-                          src={image.url || "/placeholder.svg"}
-                          alt="Additional blog image"
-                          className="rounded-lg w-full h-auto object-cover border-2 border-gray-400"
-                        />
+                        <div key={image.id} className="aspect-video relative rounded-lg overflow-hidden">
+                          <img
+                            src={image.url || "/placeholder.svg"}
+                            alt="Additional blog image"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>

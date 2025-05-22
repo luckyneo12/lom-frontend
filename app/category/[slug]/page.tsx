@@ -133,11 +133,7 @@ export default function CategoryPage() {
       <p className="text-center text-gray-600 mb-10 max-w-2xl mx-auto">
         {category.description || `Explore our collection of ${category.blogCount} articles in ${category.name}`}
       </p>
-      <BlogGrid 
-        blogs={blogs} 
-        categoryName={category.name}
-        isCategoryPage={true}
-      />
+
     </div>
   );
 }

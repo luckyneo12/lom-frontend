@@ -374,7 +374,7 @@ export default function BlogManagementPage() {
                       />
                     ) : null}
                     <div className={cn("absolute inset-0", post.mainImage ? "hidden" : "")}>
-                      <PlaceholderImage text={post.title.slice(0, 10)} />
+                      <PlaceholderImage text={post.title ? post.title.slice(0, 10) : 'Blog'} />
                     </div>
                   </div>
                   <div className="flex-1">

@@ -1,27 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Edit, Trash2, Plus, Eye, EyeOff } from "lucide-react";
-import Link from "next/link";
+import { Loader2, Search, Edit, Trash2, Plus, Eye, EyeOff, GripVertical, Pencil } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,18 +39,69 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil } from "lucide-react";
 
 interface Section {
   _id: string;
   title: string;
-  category?: string;
-  limit: number;
   order: number;
-  display_style: "grid" | "list" | "carousel";
-  active: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+function SortableSection({ section, onToggleActive, onEdit, onDelete }: { 
+  section: Section;
+  onToggleActive: (section: Section) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: section._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-4 bg-white rounded-lg shadow mb-2"
+    >
+      <div className="flex items-center space-x-4">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="h-5 w-5 text-gray-400" />
+        </button>
+        <span className="font-medium">{section.title}</span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(section._id)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(section._id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function SectionsPage() {
@@ -51,7 +109,16 @@ export default function SectionsPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sectionToDelete, setSectionToDelete] = useState<Section | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [sectionToDelete, setSectionToDelete] = useState<string | null>(null);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchSections();
@@ -62,7 +129,11 @@ export default function SectionsPage() {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections`,
         {
-          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          credentials: 'include'
         }
       );
 
@@ -71,34 +142,153 @@ export default function SectionsPage() {
       }
 
       const data = await response.json();
-      setSections(data);
+      // Sort sections by order
+      const sortedSections = data.sort((a: Section, b: Section) => a.order - b.order);
+      setSections(sortedSections);
     } catch (error) {
-      console.error("Error fetching sections:", error);
-      toast.error("Failed to load sections");
+      toast({
+        title: "Error",
+        description: "Failed to fetch sections",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (section: Section) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setUpdatingOrder(true);
+      const oldIndex = sections.findIndex((section) => section._id === active.id);
+      const newIndex = sections.findIndex((section) => section._id === over.id);
+
+      const newSections = arrayMove(sections, oldIndex, newIndex);
+      setSections(newSections);
+
+      // Update order in backend
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections/reorder`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem('token')}`,
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              sections: newSections.map((section, index) => ({
+                id: section._id,
+                order: index,
+              })),
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to update section order");
+        }
+
+        toast({
+          title: "Success",
+          description: "Section order updated successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update section order",
+          variant: "destructive",
+        });
+        // Revert to original order on error
+        fetchSections();
+      } finally {
+        setUpdatingOrder(false);
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setShowDeleteDialog(false);
+    setSectionToDelete(id);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections/${section._id}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections/${id}`,
         {
-          method: "DELETE",
-          credentials: "include",
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          credentials: 'include',
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to delete section");
+        throw new Error('Failed to delete section');
       }
 
-      toast.success("Section deleted successfully");
-      setSections(sections.filter(s => s._id !== section._id));
+      // After successful deletion, fetch updated sections
+      const updatedResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          credentials: 'include',
+        }
+      );
+
+      if (!updatedResponse.ok) {
+        throw new Error('Failed to fetch updated sections');
+      }
+
+      const updatedSections = await updatedResponse.json();
+      
+      // Update orders to be sequential starting from 0
+      const reorderedSections = updatedSections.map((section: Section, index: number) => ({
+        ...section,
+        order: index // Start from 0
+      }));
+
+      // Update all sections with new orders
+      await Promise.all(
+        reorderedSections.map((section: Section) =>
+          fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sections/${section._id}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                title: section.title,
+                order: section.order,
+                isActive: section.isActive,
+              }),
+            }
+          )
+        )
+      );
+
+      // Update local state with reordered sections
+      setSections(reorderedSections);
+
+      toast({
+        title: "Success",
+        description: "Section deleted successfully and orders updated",
+      });
     } catch (error) {
-      console.error("Error deleting section:", error);
-      toast.error("Failed to delete section");
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete section',
+        variant: "destructive",
+      });
     } finally {
       setSectionToDelete(null);
     }
@@ -114,7 +304,7 @@ export default function SectionsPage() {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify({ active: !section.active }),
+          body: JSON.stringify({ isActive: !section.isActive }),
         }
       );
 
@@ -123,12 +313,19 @@ export default function SectionsPage() {
       }
 
       setSections(sections.map(s => 
-        s._id === section._id ? { ...s, active: !s.active } : s
+        s._id === section._id ? { ...s, isActive: !s.isActive } : s
       ));
-      toast.success(`Section ${section.active ? "deactivated" : "activated"} successfully`);
+      toast({
+        title: "Success",
+        description: `Section ${section.isActive ? "deactivated" : "activated"} successfully`,
+      });
     } catch (error) {
       console.error("Error updating section:", error);
-      toast.error("Failed to update section status");
+      toast({
+        title: "Error",
+        description: "Failed to update section status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -139,15 +336,15 @@ export default function SectionsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Sections</h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Sections</h1>
         <Button onClick={() => router.push("/dashboard/sections/create")}>
           <Plus className="mr-2 h-4 w-4" />
           Create Section
@@ -166,88 +363,48 @@ export default function SectionsPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredSections.map((section) => (
-          <Card key={section._id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{section.title}</CardTitle>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleToggleActive(section)}
-                >
-                  {section.active ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <EyeOff className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {section.category && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Category:</span>
-                    <span className="font-medium">{section.category}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Display Style:</span>
-                  <span className="font-medium">{section.display_style}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Limit:</span>
-                  <span className="font-medium">{section.limit}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Order:</span>
-                  <span className="font-medium">{section.order}</span>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push(`/dashboard/sections/edit/${section._id}`)}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setSectionToDelete(section)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Sections</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={filteredSections.map((section) => section._id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {filteredSections.map((section) => (
+                <SortableSection
+                  key={section._id}
+                  section={section}
+                  onToggleActive={handleToggleActive}
+                  onEdit={(id) => router.push(`/dashboard/sections/edit/${id}`)}
+                  onDelete={(id) => {
+                    setSectionToDelete(id);
+                    setShowDeleteDialog(true);
+                  }}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </CardContent>
+      </Card>
 
-      <AlertDialog open={!!sectionToDelete} onOpenChange={() => setSectionToDelete(null)}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Section</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the section
-              and remove it from our servers.
+              Are you sure you want to delete this section? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => sectionToDelete && handleDelete(sectionToDelete)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => handleDelete(sectionToDelete as string)}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
