@@ -46,36 +46,10 @@ const sidebarItems = [
     path: "/dashboard/sections",
     icon: LayoutGrid,
   },
-  {
-    title: "Tags",
-    path: "/dashboard/tags",
-    icon: Tag,
-  },
-  {
-    title: "Media Library",
-    path: "/dashboard/media",
-    icon: Image,
-  },
-  {
-    title: "Pages",
-    path: "/dashboard/pages",
-    icon: FileText,
-  },
-  {
-    title: "Archives",
-    path: "/dashboard/archives",
-    icon: Archive,
-  },
-  {
-    title: "Users",
-    path: "/dashboard/users",
-    icon: Users,
-  },
-  {
-    title: "Settings",
-    path: "/dashboard/settings",
-    icon: Settings,
-  },
+ 
+
+
+ 
 ];
 
 export default function DashboardSidebar() {

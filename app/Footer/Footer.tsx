@@ -59,7 +59,7 @@ export default function Footer() {
     const fetchCategories = async () => {
       try {
         console.log("Starting to fetch categories...");
-        const response = await fetch("http://localhost:5000/api/categories");
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories`);
         console.log("Response status:", response.status);
         const data = await response.json();
         console.log("Received data:", data);
