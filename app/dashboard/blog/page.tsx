@@ -19,6 +19,18 @@ import {
 import { PlaceholderImage } from "@/components/PlaceholderImage";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { FaNewspaper } from "react-icons/fa";
+import { Loader2 } from "lucide-react";
 
 interface BlogPost {
   _id: string;
@@ -88,68 +100,76 @@ export default function BlogManagementPage() {
     checkAdmin();
   }, [router]);
 
-  const fetchCategories = async (token: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
-      }
-
-      const data = await response.json();
-      setCategories(data);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
-
   const fetchPosts = async (token: string) => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        },
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
-      
+
       if (!response.ok) {
-        throw new Error("Failed to fetch posts");
+        throw new Error('Failed to fetch posts');
       }
 
       const data = await response.json();
-      setPosts(data);
-      setFilteredPosts(data);
+      // Handle both array and object response formats
+      const postsArray = Array.isArray(data) ? data : data.blogs || [];
+      setPosts(postsArray);
+      setFilteredPosts(postsArray);
     } catch (error) {
-      console.error("Error fetching posts:", error);
+      console.error('Error fetching posts:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch blog posts",
+        description: "Failed to fetch posts",
         variant: "destructive",
       });
     }
   };
 
+  const fetchCategories = async (token: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter posts based on search query and selected category
   useEffect(() => {
     let filtered = [...posts];
-
-    // Filter by search query
+    
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        post =>
-          post.title.toLowerCase().includes(query) ||
-          post.description.toLowerCase().includes(query)
+      filtered = filtered.filter(post => 
+        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-
-    // Filter by category
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(post => post.category === selectedCategory);
+    
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(post => 
+        post.category && post.category._id === selectedCategory
+      );
     }
-
+    
     setFilteredPosts(filtered);
   }, [searchQuery, selectedCategory, posts]);
 
@@ -280,7 +300,11 @@ export default function BlogManagementPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   if (!isAdmin) {
@@ -288,165 +312,163 @@ export default function BlogManagementPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:py-8">
-      <Card className="border-2 border-yellow-500 shadow-lg">
-        <CardHeader className="bg-black text-yellow-500 px-4 py-3 sm:py-4 border-b-2 border-yellow-500">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-            <Link href="/dashboard" passHref>
-              <Button
-                variant="ghost"
-                className="text-yellow-500 hover:bg-white text-sm sm:text-base"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
-            <CardTitle className="text-lg sm:text-xl text-center sm:text-left">
-              Blog Management
-            </CardTitle>
-            <Link href="/dashboard/" passHref>
-              <Button className="bg-yellow-500 text-black hover:bg-yellow-600">
-                <Plus className="h-4 w-4 mr-2" />
-                New Post
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="mb-6 flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search by title or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-2 border-gray-400"
-              />
-            </div>
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger className="w-[200px] border-2 border-gray-400">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category._id} value={category._id}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{category.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCategory(category._id);
-                        }}
-                        className="h-6 w-6 text-red-600 hover:bg-red-100"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">Blog Management</h1>
+        <Link href="/dashboard">
+          <Button>Create New Blog</Button>
+        </Link>
+      </div>
 
-          <div className="grid gap-4">
-            {filteredPosts.map((post) => (
-              <div
-                key={post.slug}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="relative w-[80px] h-[80px] rounded-md overflow-hidden">
-                    {post.mainImage ? (
-                      <img
-                        src={post.mainImage}
-                        alt={post.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-                    <div className={cn("absolute inset-0", post.mainImage ? "hidden" : "")}>
-                      <PlaceholderImage text={post.title ? post.title.slice(0, 10) : 'Blog'} />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{post.title}</h3>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {post.description}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge
-                        variant={post.status === "published" ? "default" : "secondary"}
-                      >
-                        {post.status}
-                      </Badge>
-                      {post.featured && (
-                        <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-                          Featured
-                        </Badge>
-                      )}
-                      <span className="text-sm text-gray-500">
-                        {new Date(post.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <Input
+          placeholder="Search blogs..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
+        />
+        <Select
+          value={selectedCategory}
+          onValueChange={setSelectedCategory}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category._id} value={category._id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Blog List */}
+      <div className="grid gap-4">
+        {filteredPosts && filteredPosts.length > 0 ? (
+          filteredPosts.map((post) => (
+            <div
+              key={post._id}
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start gap-4 flex-1">
+                <div className="relative w-[80px] h-[80px] rounded-md overflow-hidden">
+                  {post.mainImage ? (
+                    <img
+                      src={post.mainImage}
+                      alt={post.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center ${post.mainImage ? 'hidden' : ''}`}>
+                    <FaNewspaper className="w-8 h-8 text-white opacity-80" />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link href={`/dashboard/blog/edit/${post.slug}`}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-black hover:bg-yellow-100"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => toggleStatus(post.slug)}
-                    className={`h-8 w-8 ${
-                      post.status === "published"
-                        ? "text-yellow-600 hover:bg-yellow-100"
-                        : "text-blue-600 hover:bg-blue-100"
-                    }`}
-                  >
-                    <span className="text-xs">
-                      {post.status === "published" ? "Draft" : "Publish"}
-                    </span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(post.slug)}
-                    className="h-8 w-8 text-red-600 hover:bg-red-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="flex-1">
+                  <h3 className="font-semibold">{post.title}</h3>
+                  <p className="text-sm text-gray-600 line-clamp-2">{post.description}</p>
+                  <div className="flex gap-2 mt-2">
+                    {post.category && (
+                      <Badge variant="secondary">{post.category.name}</Badge>
+                    )}
+                    <Badge variant={post.status === 'published' ? 'default' : 'outline'}>
+                      {post.status}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            ))}
+              <div className="flex gap-2">
+                <Link href={`/dashboard/blog/${post._id}/edit`}>
+                  <Button variant="outline" size="sm">Edit</Button>
+                </Link>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteModal({
+                    isOpen: true,
+                    type: 'blog',
+                    id: post._id,
+                    title: post.title
+                  })}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No blogs found</p>
           </div>
-        </CardContent>
-      </Card>
-      
-      <ConfirmModal
-        isOpen={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        onConfirm={confirmDelete}
-        title={`Delete ${deleteModal?.type === 'blog' ? 'Blog Post' : 'Category'}`}
-        description={`Are you sure you want to delete "${deleteModal?.title}"? This action cannot be undone.`}
-        confirmText="Yes, Delete"
-        cancelText="No, Cancel"
-      />
+        )}
+      </div>
+
+      {/* Delete Modal */}
+      {deleteModal && (
+        <AlertDialog open={deleteModal.isOpen} onOpenChange={(open) => !open && setDeleteModal(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete {deleteModal.type === 'blog' ? 'the blog' : 'the category'} "{deleteModal.title}".
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token');
+                    if (!token) throw new Error('No token found');
+
+                    const response = await fetch(
+                      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/${deleteModal.type}/${deleteModal.id}`,
+                      {
+                        method: 'DELETE',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
+                      }
+                    );
+
+                    if (!response.ok) throw new Error('Failed to delete');
+
+                    toast({
+                      title: "Success",
+                      description: `${deleteModal.type === 'blog' ? 'Blog' : 'Category'} deleted successfully`,
+                    });
+
+                    if (deleteModal.type === 'blog') {
+                      fetchPosts(token);
+                    } else {
+                      fetchCategories(token);
+                    }
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "Failed to delete",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setDeleteModal(null);
+                  }
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 } 

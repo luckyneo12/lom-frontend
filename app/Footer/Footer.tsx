@@ -13,6 +13,13 @@ import {
 import { RxCross2 } from "react-icons/rx";
 import { HiOutlineMail } from "react-icons/hi";
 import { IconType } from "react-icons";
+import { useState, useEffect } from "react";
+
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+}
 
 interface SocialMediaItem {
   platform: string;
@@ -44,49 +51,80 @@ interface FooterData {
   copyright: string;
 }
 
-const footerData: FooterData = {
-  logo: {
-    src: "/bloglogo.png",
-    alt: "Legend of Marketing",
-    title: "LEGEND OF MARKETING",
-    description:
-      "Marketing That Moves. Legend That Inspire",
-  },
-  socialMedia: [
-    { platform: "Facebook", icon: FaFacebookF, link: "https://www.facebook.com/LOM.FB" },
-    { platform: "Instagram", icon: FaInstagram, link: "https://www.instagram.com/legendofmarketing" },
-    { platform: "LinkedIn", icon: FaLinkedinIn, link: "https://www.linkedin.com/company/legendofmarketing" },
-    { platform: "YouTube", icon: FaYoutube, link: "https://www.youtube.com/@legendofmarketing" },
-    { platform: "Cross", icon: RxCross2, link: "https://x.com/legendofmktg" },
-  ],
-  quickLinks: [
-    { name: "Home", link: "/" },
-    { name: "Projects", link: "/Projects" },
-    { name: "About Us", link: "/AboutUs" },
-    { name: "Contact Us", link: "/Contact" },
-  ],
-  categories: [
-    { name: "Latest Updates", link: "/" },
-    { name: "Campaign Updates", link: "/CampaignUpdate" },
-    { name: "Industry Telescope", link: "/IndustryTelescope" },
-    { name: "Case Studies", link: "/CaseStudies" },
-    { name: "News", link: "/News" },
-    { name: "Industry Updates", link: "/IndustryUpdate" },
-    { name: "Experts Speak", link: "/ExpertSpeak" },
-  ],
-  contact: {
-    phone: "+91 9713559563",
-    email: "connect@legendofmarketing.com",
-    address: "Indore, Madhya Pradesh, India",
-  },
-  bottomLinks: [
-    { name: "Privacy Policy", link: "#" },
-    { name: "Terms & Conditions", link: "#" },
-  ],
-  copyright: "© 2025 TechBranzzo. All rights reserved.",
-};
-
 export default function Footer() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        console.log("Starting to fetch categories...");
+        const response = await fetch("http://localhost:5000/api/categories");
+        console.log("Response status:", response.status);
+        const data = await response.json();
+        console.log("Received data:", data);
+
+        if (data && Array.isArray(data)) {
+          console.log("Setting categories:", data);
+          setCategories(data);
+        } else if (data.success && Array.isArray(data.data)) {
+          console.log("Setting categories from data.data:", data.data);
+          setCategories(data.data);
+        } else {
+          console.log("Invalid data format received:", data);
+        }
+      } catch (error) {
+        console.error("Error in fetchCategories:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const footerData: FooterData = {
+    logo: {
+      src: "/bloglogo.png",
+      alt: "Legend of Marketing",
+      title: "LEGEND OF MARKETING",
+      description:
+        "Marketing That Moves. Legend That Inspire",
+    },
+    socialMedia: [
+      { platform: "Facebook", icon: FaFacebookF, link: "https://www.facebook.com/LOM.FB" },
+      { platform: "Instagram", icon: FaInstagram, link: "https://www.instagram.com/legendofmarketing" },
+      { platform: "LinkedIn", icon: FaLinkedinIn, link: "https://www.linkedin.com/company/legendofmarketing" },
+      { platform: "YouTube", icon: FaYoutube, link: "https://www.youtube.com/@legendofmarketing" },
+      { platform: "Cross", icon: RxCross2, link: "https://x.com/legendofmktg" },
+    ],
+    quickLinks: [
+      { name: "Home", link: "/" },
+      { name: "Projects", link: "/Projects" },
+      { name: "About Us", link: "/AboutUs" },
+      { name: "Contact Us", link: "/Contact" },
+    ],
+    categories: [
+      { name: "Latest Updates", link: "/" },
+      { name: "Campaign Updates", link: "/CampaignUpdate" },
+      { name: "Industry Telescope", link: "/IndustryTelescope" },
+      { name: "Case Studies", link: "/CaseStudies" },
+      { name: "News", link: "/News" },
+      { name: "Industry Updates", link: "/IndustryUpdate" },
+      { name: "Experts Speak", link: "/ExpertSpeak" },
+    ],
+    contact: {
+      phone: "+91 9713559563",
+      email: "connect@legendofmarketing.com",
+      address: "Indore, Madhya Pradesh, India",
+    },
+    bottomLinks: [
+      { name: "Privacy Policy", link: "#" },
+      { name: "Terms & Conditions", link: "#" },
+    ],
+    copyright: "© 2025 TechBranzzo. All rights reserved.",
+  };
+
   return (
     <footer className="bg-black text-white px-6 md:px-20 py-10">
       {/* Top Section */}
@@ -144,20 +182,27 @@ export default function Footer() {
         {/* Categories */}
         <div className="flex-1">
           <h3 className="font-semibold mb-4 text-lg">Categories</h3>
-          <ul className="space-y-3 text-gray-400">
-            {footerData.categories.map((category, index) => (
-              <li key={index}>
-                <Link
-                  href={category.link}
-                  className="relative inline-block transition-colors duration-300 hover:text-white
-                      after:content-[''] after:absolute after:left-0 after:bottom-0 after:h-[2px] after:w-0 
-                      after:bg-yellow-400 after:transition-all after:duration-300 hover:after:w-full"
-                >
-                  {category.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {loading ? (
+            <p className="text-gray-400">Loading categories...</p>
+          ) : categories.length === 0 ? (
+            <p className="text-gray-400">No categories found</p>
+          ) : (
+            <ul className="space-y-3 text-gray-400">
+              {categories.map((category) => (
+                <li key={category._id}>
+                  <Link
+                    href={`/category/${category.slug}`}
+                    className="relative inline-block transition-colors duration-300 hover:text-white
+                        after:content-[''] after:absolute after:left-0 after:bottom-0 after:h-[2px] after:w-0 
+                        after:bg-yellow-400 after:transition-all after:duration-300 hover:after:w-full"
+                  >
+                    {category.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          
         </div>
 
         {/* Contact */}

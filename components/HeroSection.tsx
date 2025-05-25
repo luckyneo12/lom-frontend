@@ -34,7 +34,7 @@ const SearchSection = () => {
   useEffect(() => {
     const fetchRandomPosts = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:501';
+        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
         const response = await fetch(`${apiUrl}/api/blog`);
         
         if (!response.ok) {
@@ -42,8 +42,11 @@ const SearchSection = () => {
         }
         const data = await response.json();
         
+        // Handle both array and object response formats
+        const postsArray = Array.isArray(data) ? data : data.blogs || [];
+        
         // Get random 3 posts
-        const randomPosts = data
+        const randomPosts = postsArray
           .sort(() => 0.5 - Math.random())
           .slice(0, 3);
         

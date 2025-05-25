@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FaRegClock, FaRegCalendarAlt, FaNewspaper } from "react-icons/fa";
 import { useToast } from "@/components/ui/use-toast";
 
-interface Post {
+interface Blog {
   _id: string;
   slug: string;
   title: string;
@@ -35,7 +35,7 @@ interface Section {
   title: string;
   order: number;
   isActive: boolean;
-  posts: Post[];
+  blogs: Blog[];
 }
 
 const demoImage = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=2070&auto=format&fit=crop";
@@ -49,13 +49,13 @@ const truncateText = (text: string, wordLimit: number = 25) => {
   return text;
 };
 
-const BlogCard: React.FC<{ post: Post }> = ({ post }) => (
+const BlogCard: React.FC<{ blog: Blog }> = ({ blog }) => (
   <div className="group space-y-4">
-    <Link href={`/blog/${post.slug}`} className="block overflow-hidden rounded-lg">
+    <Link href={`/blog/${blog.slug}`} className="block overflow-hidden rounded-lg">
       <div className="relative aspect-[16/9] w-full overflow-hidden">
         <img
-          src={post.mainImage || demoImage}
-          alt={post.title}
+          src={blog.mainImage || demoImage}
+          alt={blog.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
@@ -63,27 +63,27 @@ const BlogCard: React.FC<{ post: Post }> = ({ post }) => (
     </Link>
 
     <div className="flex gap-2 flex-wrap">
-      {post.tags?.map((tag, i) => (
+      {blog.tags?.map((tag, i) => (
         <span key={i} className="bg-yellow-400 text-black text-xs font-bold py-1 px-2 rounded">
           {tag}
         </span>
       ))}
     </div>
 
-    <Link href={`/blog/${post.slug}`} className="block">
+    <Link href={`/blog/${blog.slug}`} className="block">
       <h3 className="text-lg font-semibold leading-tight hover:text-yellow-500 transition-colors">
-        {post.title}
+        {blog.title}
       </h3>
     </Link>
 
     <p className="text-gray-600 text-sm line-clamp-2">
-      {truncateText(post.description || '', 20)}
+      {truncateText(blog.description || '', 20)}
     </p>
 
     <div className="flex items-center text-gray-500 text-xs space-x-4">
       <div className="flex items-center space-x-1">
         <FaRegCalendarAlt className="w-3 h-3" />
-        <span>{new Date(post.createdAt).toLocaleDateString('en-US', {
+        <span>{new Date(blog.createdAt).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'short',
           day: '2-digit'
@@ -91,7 +91,7 @@ const BlogCard: React.FC<{ post: Post }> = ({ post }) => (
       </div>
       <div className="flex items-center space-x-1">
         <FaRegClock className="w-3 h-3" />
-        <span>{post.readTime || '5 Min read'}</span>
+        <span>{blog.readTime || '5 Min read'}</span>
       </div>
     </div>
   </div>
@@ -101,10 +101,26 @@ const SectionDisplay = () => {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleBlogs, setVisibleBlogs] = useState<{ [key: string]: number }>({});
   const { toast } = useToast();
 
-  // Add placeholder image constant
-  const PLACEHOLDER_IMAGE = '/placeholder.jpg';
+  // Initialize visible blogs count for each section
+  useEffect(() => {
+    if (sections.length > 0) {
+      const initialVisibleBlogs = sections.reduce((acc, section) => {
+        acc[section._id] = 8; // Start with 8 blogs visible
+        return acc;
+      }, {} as { [key: string]: number });
+      setVisibleBlogs(initialVisibleBlogs);
+    }
+  }, [sections]);
+
+  const loadMoreBlogs = (sectionId: string) => {
+    setVisibleBlogs(prev => ({
+      ...prev,
+      [sectionId]: (prev[sectionId] || 8) + 8
+    }));
+  };
 
   useEffect(() => {
     const fetchSections = async () => {
@@ -132,11 +148,12 @@ const SectionDisplay = () => {
         const sortedSections = sectionsData.sort((a: Section, b: Section) => a.order - b.order);
         console.log('Sorted Sections:', sortedSections);
 
-        // Fetch posts for each section
-        const sectionsWithPosts = await Promise.all(
+        // Fetch blogs for each section
+        const sectionsWithBlogs = await Promise.all(
           sortedSections.map(async (section: Section) => {
             try {
-              const postsResponse = await fetch(
+              // Fetch blogs for this specific section
+              const blogsResponse = await fetch(
                 `${apiUrl}/api/blog?section=${section._id}`,
                 {
                   method: 'GET',
@@ -147,37 +164,37 @@ const SectionDisplay = () => {
                 }
               );
 
-              if (!postsResponse.ok) {
-                throw new Error(`Failed to fetch posts for section ${section._id}`);
+              if (!blogsResponse.ok) {
+                throw new Error(`Failed to fetch blogs for section ${section._id}`);
               }
 
-              const postsData = await postsResponse.json();
-              console.log(`Posts for section ${section.title}:`, postsData);
+              const blogsData = await blogsResponse.json();
+              console.log(`Blogs for section ${section.title}:`, blogsData);
 
-              // Transform posts to include readTime
-              const transformedPosts = Array.isArray(postsData) ? postsData : postsData.posts || [];
-              const posts = transformedPosts.map((post: any) => ({
-                ...post,
-                readTime: `${Math.ceil(post.description.split(' ').length / 200)} min read`
+              // Transform blogs to include readTime
+              const postsArray = Array.isArray(blogsData) ? blogsData : blogsData.blogs || [];
+              const blogs = postsArray.map((blog: any) => ({
+                ...blog,
+                readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`
               }));
 
               return {
                 ...section,
-                posts
+                blogs
               };
             } catch (error) {
-              console.error(`Error fetching posts for section ${section._id}:`, error);
+              console.error(`Error fetching blogs for section ${section._id}:`, error);
               return {
                 ...section,
-                posts: []
+                blogs: []
               };
             }
           })
         );
 
-        // Filter out sections with no posts
-        const validSections = sectionsWithPosts.filter(section => section.posts.length > 0);
-        console.log('Valid Sections with Posts:', validSections);
+        // Filter out sections with no blogs
+        const validSections = sectionsWithBlogs.filter(section => section.blogs.length > 0);
+        console.log('Valid Sections with Blogs:', validSections);
 
         setSections(validSections);
       } catch (error) {
@@ -236,81 +253,108 @@ const SectionDisplay = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {sections.map((section) => {
-        // Filter blogs for this section
-        const sectionBlogs = section.posts.filter(post => post.section && post.section._id === section._id);
-        
-        return (
-          <div key={section._id} className="mb-12">
-            <h2 className="text-2xl md:text-4xl font-bold mb-8 flex items-center gap-2 text-gray-800">
-              <span className="h-10 w-1 bg-yellow-500 inline-block rounded-full"></span>
-              <span className="border-b-2 border-yellow-500 pb-2">
+      {sections.map((section) => (
+        <div key={section._id} className="mb-16 relative">
+          {/* Left border */}
+          <div className="absolute left-0 top-0 h-[calc(100%-2rem)] w-1 bg-yellow-500 rounded-full"></div>
+          
+          <div className="pl-6">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl md:text-4xl font-bold text-gray-800 relative inline-block">
                 {section.title || 'Unnamed Section'}
-              </span>
-            </h2>
+                {/* Bottom border */}
+                <div className="absolute -bottom-2 left-0 w-full h-1 bg-yellow-500 rounded-full"></div>
+              </h2>
+              <Link 
+                href={`/section/${section._id}`}
+                className="text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-2"
+              >
+                View All
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </Link>
+            </div>
 
-            {sectionBlogs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {sectionBlogs.map((post) => (
-                  <Link href={`/blog/${post.slug}`} key={post._id}>
-                    <div className="bg-white border rounded-xl overflow-hidden hover:shadow-lg transition cursor-pointer group h-full flex flex-col">
-                      <div className="relative aspect-[16/9] w-full overflow-hidden">
-                        {post.mainImage ? (
-                          <img 
-                            src={post.mainImage} 
-                            alt={post.meta?.meta_title || post.title} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <div className={`w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center ${post.mainImage ? 'hidden' : ''}`}>
-                          <FaNewspaper className="w-12 h-12 text-white opacity-80" />
+            {section.blogs && section.blogs.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {section.blogs.slice(0, visibleBlogs[section._id] || 8).map((blog) => (
+                    <Link href={`/blog/${blog.slug}`} key={blog._id}>
+                      <div className="bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group h-full flex flex-col border border-gray-100">
+                        <div className="relative aspect-[16/9] w-full overflow-hidden">
+                          {blog.mainImage ? (
+                            <img 
+                              src={blog.mainImage} 
+                              alt={blog.meta?.meta_title || blog.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center ${blog.mainImage ? 'hidden' : ''}`}>
+                            <FaNewspaper className="w-12 h-12 text-white opacity-80" />
+                          </div>
                         </div>
-                      </div>
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {post.tags?.slice(0, 2).map((tag, index) => (
-                            <span key={index} className="bg-yellow-400 text-black text-xs font-semibold px-2 py-1 rounded">
-                              {tag}
+                        <div className="p-5 flex-1 flex flex-col">
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {blog.tags?.slice(0, 2).map((tag, index) => (
+                              <span key={index} className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                          <h3 className="text-lg font-bold leading-tight line-clamp-2 mb-3 group-hover:text-yellow-600 transition-colors">
+                            {blog.meta?.meta_title || blog.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">
+                            {blog.meta?.meta_description || blog.description}
+                          </p>
+                          <div className="flex items-center justify-between text-xs text-gray-500 mt-auto pt-3 border-t border-gray-100">
+                            <span className="flex items-center gap-1">
+                              <FaRegCalendarAlt className="w-3 h-3" />
+                              {new Date(blog.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
                             </span>
-                          ))}
-                        </div>
-                        <h3 className="text-base font-bold leading-tight line-clamp-2 mb-2">
-                          {post.meta?.meta_title || post.title}
-                        </h3>
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3 flex-1">
-                          {post.meta?.meta_description || post.description}
-                        </p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 mt-auto">
-                          <span className="flex items-center gap-1">
-                            <FaRegCalendarAlt />
-                            {new Date(post.createdAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <FaRegClock />
-                            {post.readTime}
-                          </span>
+                            <span className="flex items-center gap-1">
+                              <FaRegClock className="w-3 h-3" />
+                              {blog.readTime}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* View All button */}
+                {section.blogs.length > (visibleBlogs[section._id] || 8) && (
+                  <div className="mt-8 text-center">
+                    <button
+                      onClick={() => loadMoreBlogs(section._id)}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition-colors"
+                    >
+                      Load More
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <p className="text-gray-600">No blogs found in this section.</p>
               </div>
             )}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 };

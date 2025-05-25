@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import Link from 'next/link';
-import { FaRegClock, FaRegCalendarAlt } from 'react-icons/fa';
+import { FaRegClock, FaRegCalendarAlt, FaNewspaper } from 'react-icons/fa';
 import { useToast } from '@/components/ui/use-toast';
 
 // Define types for blog data
@@ -87,16 +87,21 @@ const BlogGrid: React.FC<BlogGridProps> = ({ blogs, categoryName, isCategoryPage
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         {featuredBlogs.map((blog) => (
           <Link href={`/blog/${blog.slug}`} key={blog._id}>
-            <div className="relative rounded-xl overflow-hidden cursor-pointer group">
-              <img
-                src={blog.mainImage}
-                alt={blog.title}
-                className="w-full h-[400px] object-cover group-hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  setError(`Failed to load image for blog: ${blog.title}`);
-                  e.currentTarget.src = '/placeholder-image.jpg';
-                }}
-              />
+            <div className="relative rounded-xl overflow-hidden cursor-pointer group h-[400px]">
+              {blog.mainImage ? (
+                <img
+                  src={blog.mainImage}
+                  alt={blog.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    e.currentTarget.src = '/placeholder-image.jpg';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+                  <FaNewspaper className="w-16 h-16 text-white opacity-80" />
+                </div>
+              )}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-4">
                 <div className="flex gap-2 mb-2">
                   {blog.tags.map((tag, index) => (
@@ -130,17 +135,24 @@ const BlogGrid: React.FC<BlogGridProps> = ({ blogs, categoryName, isCategoryPage
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {otherBlogs.map((blog) => (
           <Link href={`/blog/${blog.slug}`} key={blog._id}>
-            <div className="bg-white border rounded-xl overflow-hidden hover:shadow-lg transition cursor-pointer group">
-              <img 
-                src={blog.mainImage} 
-                alt={blog.title} 
-                className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  setError(`Failed to load image for blog: ${blog.title}`);
-                  e.currentTarget.src = '/placeholder-image.jpg';
-                }}
-              />
-              <div className="p-3">
+            <div className="bg-white border rounded-xl overflow-hidden hover:shadow-lg transition cursor-pointer group h-[300px] flex flex-col">
+              <div className="relative h-40 w-full">
+                {blog.mainImage ? (
+                  <img 
+                    src={blog.mainImage} 
+                    alt={blog.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder-image.jpg';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+                    <FaNewspaper className="w-12 h-12 text-white opacity-80" />
+                  </div>
+                )}
+              </div>
+              <div className="p-3 flex-1 flex flex-col">
                 <div className="flex flex-wrap gap-2 mb-2">
                   {blog.tags.slice(0, 2).map((tag, index) => (
                     <span key={index} className="bg-yellow-400 text-black text-xs font-semibold px-2 py-1 rounded">
@@ -148,7 +160,7 @@ const BlogGrid: React.FC<BlogGridProps> = ({ blogs, categoryName, isCategoryPage
                     </span>
                   ))}
                 </div>
-                <h3 className="text-sm font-bold leading-tight line-clamp-2">{blog.title}</h3>
+                <h3 className="text-sm font-bold leading-tight line-clamp-2 flex-1">{blog.title}</h3>
                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <FaRegCalendarAlt />

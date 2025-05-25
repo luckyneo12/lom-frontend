@@ -81,14 +81,18 @@ export default function CategoryPage() {
 
         const postsData = await postsResponse.json();
         
+        // Handle both array and object response formats
+        const postsArray = Array.isArray(postsData) ? postsData : postsData.blogs || [];
+        
         // Transform the data to include readTime and filter by category
-        const transformedBlogs = postsData
+        const transformedBlogs = postsArray
           .map((blog: any) => ({
             ...blog,
             readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`
           }))
-          .filter((blog: Blog) => blog.category.slug === params.slug);
+          .filter((blog: Blog) => blog.category && blog.category.slug === params.slug);
 
+        console.log('Filtered blogs:', transformedBlogs);
         setBlogs(transformedBlogs);
 
         // Update category with actual blog count
@@ -134,6 +138,13 @@ export default function CategoryPage() {
         {category.description || `Explore our collection of ${category.blogCount} articles in ${category.name}`}
       </p>
 
+      {blogs.length > 0 ? (
+        <BlogGrid blogs={blogs} categoryName={category.name} isCategoryPage={true} />
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-gray-600">No blogs found in this category.</p>
+        </div>
+      )}
     </div>
   );
 }
