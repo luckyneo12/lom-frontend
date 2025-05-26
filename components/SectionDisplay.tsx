@@ -265,15 +265,7 @@ const SectionDisplay = () => {
                 {/* Bottom border */}
                 <div className="absolute -bottom-2 left-0 w-full h-1 bg-yellow-500 rounded-full"></div>
               </h2>
-              <Link 
-                href={`/section/${section._id}`}
-                className="text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-2"
-              >
-                View All
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              </Link>
+             
             </div>
 
             {section.blogs && section.blogs.length > 0 ? (

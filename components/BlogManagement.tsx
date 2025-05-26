@@ -39,21 +39,21 @@ export default function BlogManagement({ slug, onDelete }: BlogManagementProps) 
       const blogId = blogData.blog._id;
 
       // Now delete using the ID
-      const deleteResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${slug}`, {
-        method: 'DELETE',
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blogs/${blogId}/status`, {
+        method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        credentials: 'include'
+        body: JSON.stringify({ status: 'draft' })
       });
 
-      if (!deleteResponse.ok) {
-        const errorData = await deleteResponse.json();
-        throw new Error(errorData.message || 'Failed to delete blog post');
+      if (!response.ok) {
+        throw new Error('Failed to delete blog');
       }
 
-      const data = await deleteResponse.json();
+      const data = await response.json();
       toast({
         title: "Success",
         description: "Blog post deleted successfully",

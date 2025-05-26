@@ -45,7 +45,7 @@ const BlogSection = () => {
     try {
       setLoading(true);
       const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/blog?page=${pageNum}&limit=10`, {
+      const response = await fetch(`${apiUrl}/api/blog`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -207,7 +207,7 @@ const BlogSection = () => {
                 <img
                   src={post.mainImage}
                   alt={post.title}
-                  className=" w-40 rounded-lg object-cover"
+                  className="max-w-40 min-w-14 max-h-20 min-h-14 rounded-lg "
                   onError={(e) => {
                     e.currentTarget.src = '/placeholder-image.jpg';
                   }}

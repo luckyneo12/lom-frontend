@@ -1,85 +1,81 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  FileText,
-  MessageSquare,
-  FolderTree,
-  Layers,
-  Settings,
-  Users,
-  Tag,
-  BookOpen,
-  Image,
-  FileArchive,
-  Briefcase,
-  LayoutGrid,
-  Archive
-} from "lucide-react";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { FaHome, FaBlog, FaTrash, FaFolder, FaProjectDiagram, FaCog, FaEnvelope, FaLayerGroup } from 'react-icons/fa';
 
 const sidebarItems = [
   {
     title: "Dashboard",
     path: "/dashboard",
-    icon: LayoutDashboard,
+    icon: FaHome,
   },
   {
-    title: "Project Categories",
-    path: "/dashboard/project-categories",
-    icon: FolderTree,
+    title: "Blogs",
+    path: "/dashboard/blog",
+    icon: FaBlog,
   },
   {
-    title: "Projects",
-    path: "/dashboard/create-project",
-    icon: Briefcase,
+    title: "Deleted Blogs",
+    path: "/dashboard/deleted-blogs",
+    icon: FaTrash,
   },
   {
     title: "Categories",
     path: "/dashboard/categories",
-    icon: Layers,
+    icon: FaFolder,
+  },
+  {
+    title: "Project Categories",
+    path: "/dashboard/project-categories",
+    icon: FaLayerGroup,
+  },
+ 
+  {
+    title: " Project",
+    path: "/dashboard/create-project",
+    icon: FaProjectDiagram,
   },
   {
     title: "Sections",
     path: "/dashboard/sections",
-    icon: LayoutGrid,
+    icon: FaLayerGroup,
   },
- 
-
-
- 
+  {
+    title: "Contact",
+    path: "/dashboard/contact",
+    icon: FaEnvelope,
+  },
 ];
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="pb-12 min-h-screen border-r">
-      <div className="space-y-4 py-4">
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-            Admin Panel
-          </h2>
-          <div className="space-y-1">
-            {sidebarItems.map((item) => (
+    <div className="h-screen bg-white border-r">
+      <div className="p-4">
+        <h2 className="text-xl font-bold mb-6">Dashboard</h2>
+        <nav className="space-y-2">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.path;
+            
+            return (
               <Link
                 key={item.path}
                 href={item.path}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
-                  pathname === item.path
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground"
-                )}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive 
+                    ? 'bg-yellow-500 text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
               >
-                <item.icon className="h-4 w-4" />
-                {item.title}
+                <Icon className="w-5 h-5" />
+                <span>{item.title}</span>
               </Link>
-            ))}
-          </div>
-        </div>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );

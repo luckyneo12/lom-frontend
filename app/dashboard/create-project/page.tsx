@@ -50,10 +50,15 @@ const CreateProject = () => {
     mainImage: null as File | null,
     images: [] as File[],
   });
-  const [previewUrls, setPreviewUrls] = useState({
+  const [previewUrls, setPreviewUrls] = useState<{
+    mainImage: string;
+    images: string[];
+  }>({
     mainImage: "",
-    images: [] as string[],
+    images: [],
   });
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -145,17 +150,22 @@ const CreateProject = () => {
     const files = e.target.files;
     if (!files) return;
 
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
     if (type === 'mainImage') {
       const file = files[0];
       if (file) {
         // Validate file type
-        if (!file.type.startsWith('image/')) {
-          toast.error('Please upload an image file');
+        if (!allowedTypes.includes(file.type.toLowerCase())) {
+          toast.error(`Please upload a valid image file (JPEG, PNG, GIF, WEBP)`);
+          e.target.value = ''; // Clear the input
           return;
         }
-        // Validate file size (10MB)
-        if (file.size > 10 * 1024 * 1024) {
+        // Validate file size
+        if (file.size > maxSize) {
           toast.error('File size should be less than 10MB');
+          e.target.value = ''; // Clear the input
           return;
         }
         setFormData(prev => ({ ...prev, mainImage: file }));
@@ -168,11 +178,11 @@ const CreateProject = () => {
       const newFiles = Array.from(files);
       // Validate each file
       const validFiles = newFiles.filter(file => {
-        if (!file.type.startsWith('image/')) {
-          toast.error(`${file.name} is not an image file`);
+        if (!allowedTypes.includes(file.type.toLowerCase())) {
+          toast.error(`${file.name} is not a valid image file. Please upload JPEG, PNG, GIF, or WEBP files.`);
           return false;
         }
-        if (file.size > 10 * 1024 * 1024) {
+        if (file.size > maxSize) {
           toast.error(`${file.name} is larger than 10MB`);
           return false;
         }
@@ -180,10 +190,13 @@ const CreateProject = () => {
       });
 
       if (validFiles.length > 0) {
-        setFormData(prev => ({ ...prev, images: [...prev.images, ...validFiles] }));
+        setFormData(prev => ({
+          ...prev,
+          images: Array.isArray(prev.images) ? [...prev.images, ...validFiles] : validFiles,
+        }));
         setPreviewUrls(prev => ({
           ...prev,
-          images: [...prev.images, ...validFiles.map(file => URL.createObjectURL(file))],
+          images: Array.isArray(prev.images) ? [...prev.images, ...validFiles.map(file => URL.createObjectURL(file))] : validFiles.map(file => URL.createObjectURL(file)),
         }));
       }
     }
@@ -196,11 +209,11 @@ const CreateProject = () => {
     } else {
       setFormData(prev => ({
         ...prev,
-        images: prev.images.filter((_, i) => i !== index),
+        images: Array.isArray(prev.images) ? prev.images.filter((_, i) => i !== index) : [],
       }));
       setPreviewUrls(prev => ({
         ...prev,
-        images: prev.images.filter((_, i) => i !== index),
+        images: Array.isArray(prev.images) ? prev.images.filter((_, i) => i !== index) : [],
       }));
     }
   };
@@ -227,6 +240,11 @@ const CreateProject = () => {
       toast.error("Main image is required");
       return;
     }
+    // Only require additional images for new projects
+    if (!editingProject && (!formData.images || formData.images.length === 0)) {
+      toast.error("At least one additional image is required");
+      return;
+    }
 
     try {
       // Create FormData for all files
@@ -243,9 +261,11 @@ const CreateProject = () => {
       }
 
       // Add additional images
-      formData.images.forEach((image) => {
-        formDataToSend.append("additionalImages", image);
-      });
+      if (formData.images && formData.images.length > 0) {
+        formData.images.forEach((image) => {
+          formDataToSend.append("additionalImages", image);
+        });
+      }
 
       // Log the form data for debugging
       console.log('Form data being sent:', {
@@ -253,7 +273,8 @@ const CreateProject = () => {
         description: formData.description.trim(),
         category: formData.category,
         hasMainImage: !!formData.mainImage,
-        additionalImagesCount: formData.images.length
+        additionalImagesCount: formData.images.length,
+        isUpdate: !!editingProject
       });
 
       const url = editingProject
@@ -333,13 +354,84 @@ const CreateProject = () => {
       description: project.description,
       category: project.category,
       mainImage: null,
-      images: [],
+      images: [], // Reset images array for new uploads
     });
     setPreviewUrls({
       mainImage: project.mainImage,
-      images: project.images,
+      images: project.images || [], // Set existing images as preview
     });
     setIsModalOpen(true);
+  };
+
+  const renderAdditionalImages = () => {
+    const images = Array.isArray(previewUrls?.images) ? previewUrls.images : [];
+    return images.length > 0 ? (
+      <div className="grid grid-cols-3 gap-4">
+        {images.map((url, index) => (
+          <div key={index} className="relative group">
+            <img
+              src={url}
+              alt={`Additional image ${index + 1}`}
+              className="h-24 w-full object-cover rounded"
+            />
+            <button
+              type="button"
+              onClick={() => removeImage(index, 'images')}
+              className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+        <label className="relative cursor-pointer bg-gray-50 rounded-md p-2 border-2 border-dashed border-gray-300 hover:border-yellow-400 transition-colors">
+          <div className="flex flex-col items-center">
+            <Plus className="w-6 h-6 text-gray-400" />
+            <span className="text-sm text-gray-600">Add more</span>
+          </div>
+          <input
+            type="file"
+            className="sr-only"
+            accept="image/*"
+            multiple
+            onChange={(e) => handleImageChange(e, 'images')}
+          />
+        </label>
+      </div>
+    ) : (
+      <>
+        <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <div className="flex text-sm text-gray-600">
+          <label className="relative cursor-pointer bg-white rounded-md font-medium text-yellow-400 hover:text-yellow-500">
+            <span>Upload files</span>
+            <input
+              type="file"
+              className="sr-only"
+              accept="image/*"
+              multiple
+              onChange={(e) => handleImageChange(e, 'images')}
+            />
+          </label>
+          <p className="pl-1">or drag and drop</p>
+        </div>
+        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+      </>
+    );
+  };
+
+  const handleNextImage = () => {
+    if (selectedProject) {
+      setCurrentImageIndex((prev) => 
+        prev < selectedProject.images.length ? prev + 1 : 0
+      );
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (selectedProject) {
+      setCurrentImageIndex((prev) => 
+        prev > 0 ? prev - 1 : selectedProject.images.length
+      );
+    }
   };
 
   if (loading) {
@@ -407,12 +499,38 @@ const CreateProject = () => {
                     alt={project.title}
                     className="w-full h-full object-cover"
                   />
+                  {project.images && project.images.length > 0 && (
+                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                      {project.images.length + 1} images
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="text-lg font-semibold mb-2">{project.title}</h3>
                   <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                     {project.description}
                   </p>
+                  {project.images && project.images.length > 0 && (
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                      {project.images.slice(0, 4).map((image, index) => (
+                        <img
+                          key={index}
+                          src={image}
+                          alt={`Additional image ${index + 1}`}
+                          className="h-16 w-16 object-cover rounded cursor-pointer"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setCurrentImageIndex(index + 1);
+                          }}
+                        />
+                      ))}
+                      {project.images.length > 4 && (
+                        <div className="h-16 w-16 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+                          +{project.images.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">
                       {new Date(project.createdAt).toLocaleDateString()}
@@ -543,61 +661,11 @@ const CreateProject = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Additional Images
+                  Additional Images <span className="text-red-500">*</span>
                 </label>
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                   <div className="space-y-1 text-center">
-                    {previewUrls.images.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-4">
-                        {previewUrls.images.map((url, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={url}
-                              alt={`Additional image ${index + 1}`}
-                              className="h-24 w-full object-cover rounded"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index, 'images')}
-                              className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <label className="relative cursor-pointer bg-gray-50 rounded-md p-2 border-2 border-dashed border-gray-300 hover:border-yellow-400 transition-colors">
-                          <div className="flex flex-col items-center">
-                            <Plus className="w-6 h-6 text-gray-400" />
-                            <span className="text-sm text-gray-600">Add more</span>
-                          </div>
-                          <input
-                            type="file"
-                            className="sr-only"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => handleImageChange(e, 'images')}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <>
-                        <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600">
-                          <label className="relative cursor-pointer bg-white rounded-md font-medium text-yellow-400 hover:text-yellow-500">
-                            <span>Upload files</span>
-                            <input
-                              type="file"
-                              className="sr-only"
-                              accept="image/*"
-                              multiple
-                              onChange={(e) => handleImageChange(e, 'images')}
-                            />
-                          </label>
-                          <p className="pl-1">or drag and drop</p>
-                        </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                      </>
-                    )}
+                    {renderAdditionalImages()}
                   </div>
                 </div>
               </div>
@@ -632,6 +700,35 @@ const CreateProject = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="relative w-full max-w-4xl mx-4">
+            <button onClick={() => setSelectedProject(null)}>...</button>
+            
+            <div className="relative aspect-video">
+              <img
+                src={currentImageIndex === 0 ? selectedProject.mainImage : selectedProject.images[currentImageIndex - 1]}
+                alt={selectedProject.title}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            
+            <div className="absolute inset-y-0 left-0 flex items-center">
+              <button onClick={handlePrevImage}>...</button>
+            </div>
+            <div className="absolute inset-y-0 right-0 flex items-center">
+              <button onClick={handleNextImage}>...</button>
+            </div>
+            
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+              <div className="bg-black bg-opacity-50 text-white px-4 py-2 rounded">
+                {currentImageIndex + 1} / {selectedProject.images.length + 1}
+              </div>
+            </div>
           </div>
         </div>
       )}

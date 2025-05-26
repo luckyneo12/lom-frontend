@@ -236,10 +236,8 @@ export default function BlogPostPage() {
               className="w-full rounded-md h-[500px] object-cover transform transition-transform duration-500 hover:scale-[1.03] hover:rotate-[0.5deg] shadow-lg cursor-pointer"
             />
           ) : (
-            <div className="w-full h-[500px] bg-gray-100 rounded-md flex items-center justify-center">
-              <ImageIcon className="w-16 h-16 text-gray-400" />
-              <span className="text-gray-500 ml-2">No image available</span>
-            </div>
+            <>
+            </>
           )}
         </div>
 

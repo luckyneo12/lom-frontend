@@ -8,7 +8,8 @@ interface Project {
   title: string;
   description: string;
   category: string;
-  imageUrl: string;
+  mainImage: string;
+  additionalImages: string[];
 }
 
 const projectsData: Project[] = [
@@ -17,21 +18,24 @@ const projectsData: Project[] = [
     title: 'Pepsi',
     description: 'A bold influencer-driven summer campaign...',
     category: 'Influencer Marketing',
-    imageUrl: '/v1.jpeg',
+    mainImage: '/v1.jpeg',
+    additionalImages: ['/v1-1.jpeg', '/v1-2.jpeg', '/v1-3.jpeg'],
   },
   {
     id: 2,
     title: "Swiggy's Voice of Hunger",
     description: 'A wildly hilarious voice-challenge campaign...',
     category: 'Social Media',
-    imageUrl: '/v2.jpeg',
+    mainImage: '/v2.jpeg',
+    additionalImages: [],
   },
   {
     id: 3,
     title: 'Cadbury Unity Bar',
     description: 'Heartfelt diversity-rich promotion...',
     category: 'Brand Campaigns',
-    imageUrl: '/v3.jpeg',
+    mainImage: '/v3.jpeg',
+    additionalImages: [],
   },
 ];
 
@@ -48,6 +52,15 @@ const categories: string[] = [
 export default function Project() {
   const [visibleCount, setVisibleCount] = useState(6);
   const [activeCategory, setActiveCategory] = useState('All Projects');
+  const [previewUrls, setPreviewUrls] = useState<{
+    mainImage: string;
+    images: string[];
+  }>({
+    mainImage: "",
+    images: [],
+  });
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const filteredProjects = activeCategory === 'All Projects'
     ? projectsData
@@ -62,6 +75,31 @@ export default function Project() {
 
   const handleLoadMore = () => {
     setVisibleCount(visibleCount + 3);
+  };
+
+  const setFormData = (prev: any) => ({
+    ...prev,
+    images: Array.isArray(prev.images) ? prev.images.filter((_, i) => i !== index) : [],
+  });
+
+  const handleNextImage = () => {
+    if (selectedProject) {
+      setCurrentImageIndex((prev) => 
+        prev === selectedProject.additionalImages.length ? 0 : prev + 1
+      );
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (selectedProject) {
+      setCurrentImageIndex((prev) => 
+        prev === 0 ? selectedProject.additionalImages.length : prev - 1
+      );
+    }
+  };
+
+  const handleProjectClick = (project: Project) => {
+    setSelectedProject(project);
   };
 
   return (
@@ -91,10 +129,11 @@ export default function Project() {
         {visibleProjects.map(project => (
           <div
             key={project.id}
-            className="relative group rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
+            className="relative group rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+            onClick={() => handleProjectClick(project)}
           >
             <img
-              src={project.imageUrl}
+              src={project.mainImage}
               alt={project.title}
               className="w-full h-96 object-cover transition-transform duration-500 group-hover:scale-105"
             />
@@ -119,6 +158,55 @@ export default function Project() {
           >
             Load More Projects
           </button>
+        </div>
+      )}
+
+      {selectedProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+          <div className="relative max-w-4xl w-full">
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <div className="relative">
+              <img
+                src={currentImageIndex === 0 ? selectedProject.mainImage : selectedProject.additionalImages[currentImageIndex - 1]}
+                alt={selectedProject.title}
+                className="w-full h-auto max-h-[80vh] object-contain"
+              />
+              
+              {selectedProject.additionalImages.length > 0 && (
+                <>
+                  <button
+                    onClick={handlePrevImage}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="mt-4 text-center text-white">
+              <p className="text-lg font-semibold">{selectedProject.title}</p>
+              <p className="text-sm text-gray-300">{currentImageIndex + 1} of {selectedProject.additionalImages.length + 1}</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
