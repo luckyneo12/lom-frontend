@@ -291,7 +291,7 @@ export function BlogEditor() {
       formData.append("category", values.category);
       formData.append("section", values.display_section);
       formData.append("author", values.author);
-      formData.append("status", "draft");
+      formData.append("status", "published");
       formData.append("featured", "false");
 
       // Add meta information

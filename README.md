@@ -1,73 +1,59 @@
 # Legend of Marketing Frontend
 
-A modern web application for Legend of Marketing built with Next.js, TypeScript, and Tailwind CSS.
+A modern web application for Legend of Marketing built with Next.js and TypeScript.
 
 ## Features
 
-- Dynamic category management
-- Blog management system
-- Project showcase
-- Contact management
-- Responsive design
-- Modern UI/UX
+- Responsive design with mobile-first approach
+- Dynamic blog management system
+- User authentication and authorization
+- Interactive dashboard for content management
+- Social media integration
+- SEO optimized pages
 
-## Tech Stack
+## Recent Updates
 
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- React Icons
-- MongoDB (Backend)
+- Added dynamic side menu with conditional rendering based on user login status
+- Implemented dashboard access for authenticated users
+- Enhanced blog display with pagination
+- Improved image handling and sizing in blog posts
+- Added social media links in side menu
 
 ## Getting Started
 
-1. Clone the repository:
-```bash
-git clone [your-repository-url]
-```
-
+1. Clone the repository
 2. Install dependencies:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-3. Create a `.env.local` file in the root directory and add:
-```
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
-```
+## Tech Stack
 
-4. Run the development server:
-```bash
-npm run dev
-```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+- Next.js 13+
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- React Icons
 
 ## Project Structure
 
-```
-├── app/
-│   ├── blog/
-│   ├── category/
-│   ├── dashboard/
-│   ├── Footer/
-│   └── components/
-├── components/
-├── public/
-└── styles/
-```
-
-## API Integration
-
-The frontend integrates with a backend API running on `http://localhost:5000`. Make sure the backend server is running before starting the frontend application.
+- `/app` - Main application code
+- `/components` - Reusable React components
+- `/public` - Static assets
+- `/styles` - Global styles and Tailwind configuration
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
 
 ## License
 

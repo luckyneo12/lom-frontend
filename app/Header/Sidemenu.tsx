@@ -9,6 +9,7 @@ import { FaFacebookF,
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -33,8 +34,16 @@ const sideMenuLinks: MenuLink[] = [
   { name: "Contact Us", href: "/Contact" },
   { name: "Privacy Policy", href: "/PrivacyPolicy" },
   { name: "Terms & Conditions", href: "/TermsAndCondition" },
-  { name: "Login", href: "/Login" },
-  // { name: "Register", href: "/Register" },
+];
+
+const sideMenuLinksLoggedIn: MenuLink[] = [
+  { name: "Home", href: "/" },
+  { name: "Projects", href: "/Project" },
+  { name: "About Us", href: "/AboutUs" },
+  { name: "Contact Us", href: "/Contact" },
+  { name: "Privacy Policy", href: "/PrivacyPolicy" },
+  { name: "Terms & Conditions", href: "/TermsAndCondition" },
+  { name: "Dashboard", href: "/dashboard" },
 ];
 
 const socialLinks: SocialLink[] = [
@@ -46,6 +55,13 @@ const socialLinks: SocialLink[] = [
 ];
 
 export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, []);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -68,7 +84,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
           {/* Menu Links */}
           <nav className="flex flex-col space-y-6 p-6">
-            {sideMenuLinks.map(({ name, href }, index) => (
+            {(isLoggedIn ? sideMenuLinksLoggedIn : sideMenuLinks).map(({ name, href }, index) => (
               <Link
                 key={index}
                 href={href}
@@ -78,6 +94,15 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                 {name}
               </Link>
             ))}
+            {!isLoggedIn && (
+              <Link
+                href="/Login"
+                onClick={onClose}
+                className="text-lg font-medium hover:text-yellow-500"
+              >
+                Login
+              </Link>
+            )}
           </nav>
 
           {/* Social Icons */}
