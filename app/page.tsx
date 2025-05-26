@@ -24,6 +24,7 @@ const Home = () => {
   return (
     <div>
       <SearchSection />
+
       <BlogSection />
       <SectionDisplay />
    

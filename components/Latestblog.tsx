@@ -25,6 +25,8 @@ const BlogSection = () => {
   const [blogs, setBlogs] = useState<{ featuredPost?: Blog; sidePosts: Blog[]; textPosts: Blog[] }>({ sidePosts: [], textPosts: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -39,61 +41,76 @@ const BlogSection = () => {
     }
   }, [error, toast]);
 
-  useEffect(() => {
-    const fetchLatestBlogs = async () => {
-      try {
-        setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-        const response = await fetch(`${apiUrl}/api/blog`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error("Failed to fetch latest blogs");
+  const fetchLatestBlogs = async (pageNum: number) => {
+    try {
+      setLoading(true);
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/blog?page=${pageNum}&limit=10`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-
-        const data = await response.json();
-        console.log('API Response:', data); // Debug log
-        
-        // Handle both array and object response formats
-        let blogsArray = Array.isArray(data) ? data : data.posts || [];
-        
-        // Transform the data to include readTime
-        const transformedBlogs = blogsArray
-          .map((blog: any) => ({
-            ...blog,
-            readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`
-          }));
-
-        // Separate blogs with and without images
-        const blogsWithImages = transformedBlogs.filter((blog: Blog) => blog.mainImage);
-        const blogsWithoutImages = transformedBlogs.filter((blog: Blog) => !blog.mainImage);
-
-        // Get featured and side posts from blogs with images
-        const featuredPost = blogsWithImages[0];
-        const sidePosts = blogsWithImages.slice(1, 5);
-        
-        // Get text posts from blogs without images
-        const textPosts = blogsWithoutImages.slice(0, 5);
-
-        setBlogs({
-          featuredPost,
-          sidePosts,
-          textPosts
-        });
-      } catch (error) {
-        console.error("Error fetching latest blogs:", error);
-        setError(error instanceof Error ? error.message : "Failed to fetch latest blogs");
-      } finally {
-        setLoading(false);
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('API Error Response:', errorData);
+        throw new Error(`Failed to fetch latest blogs: ${response.status} ${response.statusText}`);
       }
-    };
 
-    fetchLatestBlogs();
+      const data = await response.json();
+      
+      // Handle both array and object response formats
+      let blogsArray = [];
+      if (Array.isArray(data)) {
+        blogsArray = data;
+      } else if (data && typeof data === 'object') {
+        blogsArray = data.blogs || data.posts || data.data || [];
+      }
+
+      // Check if we have more blogs to load
+      setHasMore(blogsArray.length === 10);
+
+      // Transform the data to include readTime
+      const transformedBlogs = blogsArray
+        .map((blog: any) => ({
+          ...blog,
+          readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`
+        }));
+
+      // Separate blogs with and without images
+      const blogsWithImages = transformedBlogs.filter((blog: Blog) => blog.mainImage);
+      const blogsWithoutImages = transformedBlogs.filter((blog: Blog) => !blog.mainImage);
+
+      // Get featured and side posts from blogs with images
+      const featuredPost = pageNum === 1 ? blogsWithImages[0] : undefined;
+      const sidePosts = pageNum === 1 ? blogsWithImages.slice(1, 5) : [...blogs.sidePosts, ...blogsWithImages];
+      
+      // Get text posts from blogs without images
+      const textPosts = pageNum === 1 ? blogsWithoutImages.slice(0, 5) : [...blogs.textPosts, ...blogsWithoutImages];
+
+      setBlogs({
+        featuredPost,
+        sidePosts,
+        textPosts
+      });
+    } catch (error) {
+      console.error("Error fetching latest blogs:", error);
+      setError(error instanceof Error ? error.message : "Failed to fetch latest blogs");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLatestBlogs(1);
   }, []);
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchLatestBlogs(nextPage);
+  };
 
   if (loading) {
     return (
@@ -190,7 +207,7 @@ const BlogSection = () => {
                 <img
                   src={post.mainImage}
                   alt={post.title}
-                  className="w-44 h-20 rounded-lg object-cover"
+                  className=" w-40 rounded-lg object-cover"
                   onError={(e) => {
                     e.currentTarget.src = '/placeholder-image.jpg';
                   }}
@@ -236,6 +253,17 @@ const BlogSection = () => {
             ))}
           </div>
         </div>
+        {hasMore && (
+          <div className="flex justify-center mt-10">
+            <button
+              onClick={handleLoadMore}
+              disabled={loading}
+              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'View More'}
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

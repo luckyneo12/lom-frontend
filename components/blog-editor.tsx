@@ -289,7 +289,7 @@ export function BlogEditor() {
       formData.append("title", values.mainTitle);
       formData.append("description", values.content);
       formData.append("category", values.category);
-      formData.append("display_section", values.display_section);
+      formData.append("section", values.display_section);
       formData.append("author", values.author);
       formData.append("status", "draft");
       formData.append("featured", "false");
