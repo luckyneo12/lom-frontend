@@ -21,22 +21,9 @@ interface ContactSubmission {
 
 interface ApiResponse {
   success: boolean;
-  data: ProjectCategory[];
+  data: ContactSubmission[];
   message?: string;
 }
-
-interface ProjectCategory {
-  _id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const generateSlug = (name: string) => {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-};
 
 const ContactUs: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,7 +37,6 @@ const ContactUs: React.FC = () => {
   });
   const [phoneError, setPhoneError] = useState("");
   const [submissions, setSubmissions] = useState<ContactSubmission[]>([]);
-  const [duplicates, setDuplicates] = useState<ContactSubmission[]>([]);
   const [error, setError] = useState("");
   const [totalCount, setTotalCount] = useState(0);
 
@@ -92,27 +78,36 @@ const ContactUs: React.FC = () => {
       return;
     }
 
-    if (!formData.name.trim()) {
-      toast.error("Category name is required");
+    // Validate required fields
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.address.trim() || !formData.message.trim()) {
+      toast.error("All fields are required", {
+        duration: 3000,
+        position: "top-center",
+        style: {
+          background: "#ef4444",
+          color: "white",
+          border: "none",
+        },
+      });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const slug = generateSlug(formData.name);
-      const categoryData = {
-        name: formData.name,
-        description: formData.description,
-        slug: slug
-      };
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/contact/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          phoneNumber: formData.phoneNumber,
+          email: formData.email.trim(),
+          address: formData.address.trim(),
+          message: formData.message.trim(),
+        }),
       });
 
       const responseData: ApiResponse = await response.json();
@@ -122,32 +117,18 @@ const ContactUs: React.FC = () => {
       }
 
       if (responseData.success) {
-        setSubmissions(responseData.data);
-        setDuplicates(responseData.duplicates || []);
-        setTotalCount(responseData.count);
+        setSubmissions(responseData.data || []);
+        setTotalCount(responseData.data?.length || 0);
 
-        // Show success message with duplicate info if any
-        if (responseData.duplicates && responseData.duplicates.length > 0) {
-          toast.success(`Message sent successfully! Found ${responseData.duplicates.length} similar submissions.`, {
-            duration: 5000,
-            position: "top-center",
-            style: {
-              background: "#4ade80",
-              color: "white",
-              border: "none",
-            },
-          });
-        } else {
-          toast.success("Message sent successfully! We'll get back to you soon.", {
-            duration: 5000,
-            position: "top-center",
-            style: {
-              background: "#4ade80",
-              color: "white",
-              border: "none",
-            },
-          });
-        }
+        toast.success("Message sent successfully! We'll get back to you soon.", {
+          duration: 5000,
+          position: "top-center",
+          style: {
+            background: "#4ade80",
+            color: "white",
+            border: "none",
+          },
+        });
 
         // Reset form
         setFormData({
@@ -164,7 +145,6 @@ const ContactUs: React.FC = () => {
       }
 
     } catch (error) {
-      // Error animation
       toast.error(error instanceof Error ? error.message : "Failed to send message. Please try again.", {
         duration: 5000,
         position: "top-center",

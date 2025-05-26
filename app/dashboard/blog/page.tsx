@@ -209,21 +209,25 @@ export default function BlogManagementPage() {
     try {
       if (deleteModal.type === 'blog') {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${deleteModal.id}`, {
-          method: "DELETE",
+          method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
+          body: JSON.stringify({ status: 'draft' })
         });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => null);
-          throw new Error(errorData?.message || "Failed to delete post");
+          throw new Error(errorData?.message || "Failed to move post to draft");
         }
 
-        setPosts(posts.filter(post => post.slug !== deleteModal.id));
+        // Fetch updated posts list
+        await fetchPosts(token);
+        
         toast({
           title: "Success",
-          description: "Post deleted successfully",
+          description: "Post moved to draft successfully",
         });
       } else {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/${deleteModal.id}`, {
@@ -246,10 +250,10 @@ export default function BlogManagementPage() {
         });
       }
     } catch (error) {
-      console.error("Error deleting:", error);
+      console.error("Error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : `Failed to delete ${deleteModal.type}. Please try again.`,
+        description: error instanceof Error ? error.message : `Failed to process ${deleteModal.type}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -312,50 +316,55 @@ export default function BlogManagementPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Blog Management</h1>
-        <Link href="/dashboard">
-          <Button>Create New Blog</Button>
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold">Blog Management</h1>
+        <Link href="/dashboard" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto">Create New Blog</Button>
         </Link>
       </div>
 
-      {/* Search and Filter */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <Input
-          placeholder="Search blogs..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
-        <Select
-          value={selectedCategory}
-          onValueChange={setSelectedCategory}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category._id} value={category._id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Search and Filter Section */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
+        <div className="w-full sm:max-w-sm">
+          <Input
+            placeholder="Search blogs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+        </div>
+        <div className="w-full sm:w-[180px]">
+          <Select
+            value={selectedCategory}
+            onValueChange={setSelectedCategory}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category._id} value={category._id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Blog List */}
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {filteredPosts && filteredPosts.length > 0 ? (
           filteredPosts.map((post) => (
             <div
               key={post._id}
-              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow"
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:shadow-md transition-shadow"
             >
-              <div className="flex items-start gap-4 flex-1">
-                <div className="relative w-[80px] h-[80px] rounded-md overflow-hidden">
+              <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
+                <div className="relative w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] rounded-md overflow-hidden flex-shrink-0">
                   {post.mainImage ? (
                     <img
                       src={post.mainImage}
@@ -368,37 +377,33 @@ export default function BlogManagementPage() {
                     />
                   ) : null}
                   <div className={`w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center ${post.mainImage ? 'hidden' : ''}`}>
-                    <FaNewspaper className="w-8 h-8 text-white opacity-80" />
+                    <FaNewspaper className="w-6 h-6 sm:w-8 sm:h-8 text-white opacity-80" />
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">{post.title}</h3>
-                  <p className="text-sm text-gray-600 line-clamp-2">{post.description}</p>
-                  <div className="flex gap-2 mt-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base sm:text-lg truncate">{post.title}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mt-1">{post.description}</p>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2">
                     {post.category && (
-                      <Badge variant="secondary">{post.category.name}</Badge>
+                      <Badge variant="secondary" className="text-xs sm:text-sm">{post.category.name}</Badge>
                     )}
-                    <Badge variant={post.status === 'published' ? 'default' : 'outline'}>
+                    <Badge variant={post.status === 'published' ? 'default' : 'outline'} className="text-xs sm:text-sm">
                       {post.status}
                     </Badge>
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Link href={`/dashboard/blog/${post._id}/edit`}>
-                  <Button variant="outline" size="sm">Edit</Button>
+              <div className="flex gap-2 w-full sm:w-auto mt-3 sm:mt-0">
+                <Link href={`/dashboard/blog/${post._id}/edit`} className="flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm">Edit</Button>
                 </Link>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => setDeleteModal({
-                    isOpen: true,
-                    type: 'blog',
-                    id: post._id,
-                    title: post.title
-                  })}
+                  onClick={() => handleDelete(post.slug)}
+                  className="flex-1 sm:flex-none text-xs sm:text-sm"
                 >
-                  Delete
+                 Delete
                 </Button>
               </div>
             </div>
@@ -413,57 +418,17 @@ export default function BlogManagementPage() {
       {/* Delete Modal */}
       {deleteModal && (
         <AlertDialog open={deleteModal.isOpen} onOpenChange={(open) => !open && setDeleteModal(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete {deleteModal.type === 'blog' ? 'the blog' : 'the category'} "{deleteModal.title}".
-                This action cannot be undone.
+              <AlertDialogTitle className="text-lg sm:text-xl">Move to Draft?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm sm:text-base">
+                This will move the blog "{deleteModal.title}" to draft status. You can publish it again later.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  try {
-                    const token = localStorage.getItem('token');
-                    if (!token) throw new Error('No token found');
-
-                    const response = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/${deleteModal.type}/${deleteModal.id}`,
-                      {
-                        method: 'DELETE',
-                        headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json'
-                        }
-                      }
-                    );
-
-                    if (!response.ok) throw new Error('Failed to delete');
-
-                    toast({
-                      title: "Success",
-                      description: `${deleteModal.type === 'blog' ? 'Blog' : 'Category'} deleted successfully`,
-                    });
-
-                    if (deleteModal.type === 'blog') {
-                      fetchPosts(token);
-                    } else {
-                      fetchCategories(token);
-                    }
-                  } catch (error) {
-                    toast({
-                      title: "Error",
-                      description: "Failed to delete",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setDeleteModal(null);
-                  }
-                }}
-              >
-                Delete
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="w-full sm:w-auto">
+                Move to Draft
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

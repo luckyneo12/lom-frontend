@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FaSearch, FaUndo } from 'react-icons/fa';
+import { toast } from 'sonner';
 
 interface Blog {
   _id: string;
@@ -9,6 +10,7 @@ interface Blog {
   description: string;
   status: string;
   createdAt: string;
+  slug: string;
 }
 
 export default function DeletedBlogs() {
@@ -44,27 +46,48 @@ export default function DeletedBlogs() {
     fetchDeletedBlogs();
   }, []);
 
-  const handleRestore = async (blogId: string) => {
+  const handleRestore = async (blogData: Blog) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/${blogId}/status`, {
-        method: 'PATCH',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${blogData.slug}`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: 'published' })
+        body: JSON.stringify({ 
+          status: 'published',
+          title: blogData.title,
+          description: blogData.description
+        })
       });
 
       if (!response.ok) {
         throw new Error('Failed to restore blog');
       }
 
-      // Refresh the blogs list
+      toast.success('Blog restored successfully!', {
+        duration: 3000,
+        position: 'top-center',
+        style: {
+          background: '#4ade80',
+          color: 'white',
+          border: 'none',
+        },
+      });
+
       fetchDeletedBlogs();
     } catch (err) {
       console.error('Error restoring blog:', err);
-      setError('Failed to restore blog');
+      toast.error('Failed to restore blog. Please try again.', {
+        duration: 3000,
+        position: 'top-center',
+        style: {
+          background: '#ef4444',
+          color: 'white',
+          border: 'none',
+        },
+      });
     }
   };
 
@@ -113,7 +136,7 @@ export default function DeletedBlogs() {
                   {new Date(blog.createdAt).toLocaleDateString()}
                 </span>
                 <button
-                  onClick={() => handleRestore(blog._id)}
+                  onClick={() => handleRestore(blog)}
                   className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                 >
                   <FaUndo />

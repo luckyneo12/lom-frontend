@@ -45,7 +45,7 @@ const BlogSection = () => {
     try {
       setLoading(true);
       const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/blog`, {
+      const response = await fetch(`${apiUrl}/api/blog?page=${pageNum}&limit=10&sort=-createdAt`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -67,6 +67,11 @@ const BlogSection = () => {
       } else if (data && typeof data === 'object') {
         blogsArray = data.blogs || data.posts || data.data || [];
       }
+
+      // Sort blogs by creation date in descending order
+      blogsArray.sort((a: Blog, b: Blog) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
       // Check if we have more blogs to load
       setHasMore(blogsArray.length === 10);
