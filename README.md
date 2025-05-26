@@ -13,6 +13,10 @@ A modern web application for Legend of Marketing built with Next.js and TypeScri
 
 ## Recent Updates
 
+- Enhanced blog management system with responsive design
+- Improved mobile layout for better user experience
+- Added draft status functionality for blog posts
+- Updated blog status handling with real-time updates
 - Added dynamic side menu with conditional rendering based on user login status
 - Implemented dashboard access for authenticated users
 - Enhanced blog display with pagination
