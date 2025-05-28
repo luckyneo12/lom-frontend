@@ -15,6 +15,7 @@ interface ContactSubmission {
   message: string;
   createdAt: string;
   __v: number;
+  isDuplicate?: boolean;
 }
 
 interface ApiResponse {
@@ -32,6 +33,7 @@ const ContactSubmissions = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -89,7 +91,18 @@ const ContactSubmissions = () => {
       const responseData: ApiResponse = await response.json();
       
       if (responseData.success) {
-        setSubmissions(responseData.data);
+        const emailCount = new Map<string, number>();
+        const submissionsWithDuplicates = responseData.data.map(sub => {
+          emailCount.set(sub.email, (emailCount.get(sub.email) || 0) + 1);
+          return sub;
+        });
+
+        const submissionsWithDuplicateFlag = submissionsWithDuplicates.map(sub => ({
+          ...sub,
+          isDuplicate: (emailCount.get(sub.email) || 0) > 1
+        }));
+
+        setSubmissions(submissionsWithDuplicateFlag);
         setTotalCount(responseData.count);
       } else {
         throw new Error("Failed to fetch submissions");
@@ -136,12 +149,15 @@ const ContactSubmissions = () => {
     }
   };
 
-  const filteredSubmissions = submissions.filter(sub => 
-    sub.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.phoneNumber.includes(searchTerm)
-  );
+  const filteredSubmissions = submissions.filter(sub => {
+    const matchesSearch = 
+      sub.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.phoneNumber.includes(searchTerm);
+    
+    return showOnlyDuplicates ? (matchesSearch && sub.isDuplicate) : matchesSearch;
+  });
 
   if (loading) {
     return (
@@ -168,8 +184,8 @@ const ContactSubmissions = () => {
         <p className="text-gray-600">View and manage contact form submissions ({totalCount} total)</p>
       </div>
 
-      <div className="mb-6">
-        <div className="relative">
+      <div className="mb-6 flex gap-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -179,6 +195,16 @@ const ContactSubmissions = () => {
             className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400"
           />
         </div>
+        <button
+          onClick={() => setShowOnlyDuplicates(!showOnlyDuplicates)}
+          className={`px-4 py-2 rounded-md ${
+            showOnlyDuplicates 
+              ? 'bg-yellow-400 text-white' 
+              : 'bg-gray-100 text-gray-700'
+          }`}
+        >
+          {showOnlyDuplicates ? 'Show All' : 'Show Duplicates'}
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -196,10 +222,18 @@ const ContactSubmissions = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredSubmissions.map((submission) => (
-                <tr key={submission._id} className="hover:bg-gray-50">
+                <tr 
+                  key={submission._id} 
+                  className={`hover:bg-gray-50 ${submission.isDuplicate ? 'bg-yellow-50' : ''}`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {submission.firstName} {submission.lastName}
+                      {submission.isDuplicate && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-yellow-200 text-yellow-800 rounded-full">
+                          Duplicate
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

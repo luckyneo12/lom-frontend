@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
 import Link from 'next/link';
 import { FaRegClock, FaRegCalendarAlt, FaNewspaper } from 'react-icons/fa';
 import { useToast } from '@/components/ui/use-toast';
@@ -63,17 +62,6 @@ const BlogGrid: React.FC<BlogGridProps> = ({ blogs, categoryName, isCategoryPage
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
-      <Helmet>
-        <title>{isCategoryPage ? `${categoryName} - Articles` : 'Blog - Latest Articles & Insights'}</title>
-        <meta
-          name="description"
-          content={isCategoryPage 
-            ? `Discover the latest articles and insights about ${categoryName}`
-            : "Discover the latest articles, insights, and trends across various topics and industries."
-          }
-        />
-      </Helmet>
-
       {!isCategoryPage && (
         <>
           <h1 className="text-3xl font-bold text-center mt-6 mb-2">Latest Articles</h1>
