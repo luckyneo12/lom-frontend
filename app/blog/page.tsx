@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import BlogGrid from "@/components/BlogGrid";
 import { useToast } from "@/components/ui/use-toast";
-import { Metadata } from 'next';
 
 interface Blog {
   _id: string;
+  slug: string;
   title: string;
   description: string;
   mainImage: string;
   status: "published" | "draft";
   category: {
+    _id: string;
     name: string;
     slug: string;
   };
@@ -19,22 +20,6 @@ interface Blog {
   createdAt: string;
   readTime: string;
 }
-
-export const metadata: Metadata = {
-  title: 'Blog - Latest Articles & Insights',
-  description: 'Discover the latest articles, insights, and trends across various topics and industries.',
-  openGraph: {
-    title: 'Blog - Latest Articles & Insights',
-    description: 'Discover the latest articles, insights, and trends across various topics and industries.',
-    type: 'website',
-    url: '/blog',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Blog - Latest Articles & Insights',
-    description: 'Discover the latest articles, insights, and trends across various topics and industries.',
-  },
-};
 
 export default function BlogPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
