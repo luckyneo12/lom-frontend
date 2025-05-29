@@ -9,7 +9,8 @@ A modern web application for Legend of Marketing built with Next.js and TypeScri
 - User authentication and authorization
 - Interactive dashboard for content management
 - Social media integration
-- SEO optimized pages
+- SEO optimized pages with dynamic meta tags
+- Dynamic Open Graph and Twitter card support
 
 ## Recent Updates
 
@@ -22,6 +23,14 @@ A modern web application for Legend of Marketing built with Next.js and TypeScri
 - Enhanced blog display with pagination
 - Improved image handling and sizing in blog posts
 - Added social media links in side menu
+- Implemented dynamic meta tags for better SEO
+- Added Open Graph and Twitter card support for social sharing
+- Enhanced blog post metadata with structured data
+- Implemented category management system with drag-and-drop reordering
+- Added category status management (published/draft)
+- Enhanced category UI with responsive design and real-time updates
+- Added category description support
+- Implemented category order persistence
 
 ## Getting Started
 
@@ -47,9 +56,23 @@ A modern web application for Legend of Marketing built with Next.js and TypeScri
 ## Project Structure
 
 - `/app` - Main application code
-- `/components` - Reusable React components
+  - `/blog` - Blog related pages and components
+  - `/dashboard` - Dashboard and admin interface
+  - `/components` - Reusable React components
 - `/public` - Static assets
 - `/styles` - Global styles and Tailwind configuration
+
+## SEO Features
+
+The application implements comprehensive SEO features:
+
+- Dynamic meta tags for all pages
+- Open Graph protocol support for social media sharing
+- Twitter card support
+- Structured data for blog posts
+- Canonical URLs
+- Robots meta tags
+- Sitemap generation
 
 ## Contributing
 

@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Upload, Crop, Trash2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface ImageUploaderProps {
   image: string | null;
@@ -29,6 +30,16 @@ export function ImageUploader({ image, setImage }: ImageUploaderProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Check file size (20MB = 20 * 1024 * 1024 bytes)
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image size should be less than 20MB",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -135,7 +146,7 @@ export function ImageUploader({ image, setImage }: ImageUploaderProps) {
             <Upload className="h-8 w-8 text-muted-foreground" />
             <p className="font-medium">Click to upload image</p>
             <p className="text-sm text-muted-foreground">
-              SVG, PNG, JPG or GIF (max. 2MB)
+              SVG, PNG, JPG or GIF (max. 20MB)
             </p>
           </div>
         </div>

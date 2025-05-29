@@ -634,15 +634,21 @@ export function BlogEditor() {
                                       type="button"
                                       variant="outline"
                                       onClick={() => {
-                                        const fileInput =
-                                          document.createElement("input");
+                                        const fileInput = document.createElement("input");
                                         fileInput.type = "file";
                                         fileInput.accept = "image/*";
                                         fileInput.onchange = (e) => {
-                                          const file = (
-                                            e.target as HTMLInputElement
-                                          ).files?.[0];
+                                          const file = (e.target as HTMLInputElement).files?.[0];
                                           if (file) {
+                                            // Check file size (20MB = 20 * 1024 * 1024 bytes)
+                                            if (file.size > 20 * 1024 * 1024) {
+                                              toast({
+                                                title: "Error",
+                                                description: "Image size should be less than 20MB",
+                                                variant: "destructive",
+                                              });
+                                              return;
+                                            }
                                             const reader = new FileReader();
                                             reader.onload = (event) => {
                                               if (event.target?.result) {
@@ -741,9 +747,17 @@ export function BlogEditor() {
                               fileInput.type = "file";
                               fileInput.accept = "image/*";
                               fileInput.onchange = (e) => {
-                                const file = (e.target as HTMLInputElement)
-                                  .files?.[0];
+                                const file = (e.target as HTMLInputElement).files?.[0];
                                 if (file) {
+                                  // Check file size (20MB = 20 * 1024 * 1024 bytes)
+                                  if (file.size > 20 * 1024 * 1024) {
+                                    toast({
+                                      title: "Error",
+                                      description: "Image size should be less than 20MB",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
                                   const reader = new FileReader();
                                   reader.onload = (event) => {
                                     if (event.target?.result) {

@@ -7,6 +7,7 @@ import BlogGrid from "@/components/BlogGrid";
 
 interface Blog {
   _id: string;
+  slug: string;
   title: string;
   description: string;
   mainImage: string;
@@ -58,19 +59,25 @@ export default function CategoryPage() {
         // Get the API URL from environment variable or use fallback
         const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
 
-        // Fetch category details
-        const categoryResponse = await fetch(
-          `${apiUrl}/api/categories/${params.slug}`
+        // First fetch all categories to get the ID for the slug
+        const categoriesResponse = await fetch(
+          `${apiUrl}/api/categories`
         );
 
-        if (!categoryResponse.ok) {
-          throw new Error(`Failed to fetch category: ${categoryResponse.statusText}`);
+        if (!categoriesResponse.ok) {
+          throw new Error(`Failed to fetch categories: ${categoriesResponse.statusText}`);
         }
 
-        const categoryData = await categoryResponse.json();
-        setCategory(categoryData);
+        const categoriesData = await categoriesResponse.json();
+        const currentCategory = categoriesData.find((cat: Category) => cat.slug === params.slug);
 
-        // Fetch all blogs
+        if (!currentCategory) {
+          throw new Error('Category not found');
+        }
+
+        setCategory(currentCategory);
+
+        // Now fetch blogs using the category ID
         const postsResponse = await fetch(
           `${apiUrl}/api/blog`
         );
@@ -84,24 +91,23 @@ export default function CategoryPage() {
         // Handle both array and object response formats
         const postsArray = Array.isArray(postsData) ? postsData : postsData.blogs || [];
         
-        // Transform the data to include readTime and filter by category
+        // Transform the data to include readTime and filter by category ID
         const transformedBlogs = postsArray
           .map((blog: any) => ({
             ...blog,
             readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`
           }))
-          .filter((blog: Blog) => blog.category && blog.category.slug === params.slug);
+          .filter((blog: Blog) => blog.category && blog.category._id === currentCategory._id);
 
         console.log('Filtered blogs:', transformedBlogs);
         setBlogs(transformedBlogs);
 
         // Update category with actual blog count
-        if (categoryData) {
-          setCategory(prev => prev ? {
-            ...prev,
-            blogCount: transformedBlogs.length
-          } : null);
-        }
+        setCategory(prev => prev ? {
+          ...prev,
+          blogCount: transformedBlogs.length
+        } : null);
+
       } catch (error) {
         console.error("Error fetching data:", error);
         setError(error instanceof Error ? error.message : "Failed to fetch data. Please try again later.");

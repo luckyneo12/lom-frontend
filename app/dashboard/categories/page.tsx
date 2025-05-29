@@ -5,19 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit, Check, X, GripVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
 
 interface Category {
   _id: string;
-  name: string; 
+  name: string;
   description: string;
   blogCount: number;
   status: "published" | "draft";
+  order: number;
 }
 
 export default function CategoryManagementPage() {
@@ -86,8 +88,9 @@ export default function CategoryManagementPage() {
       }
 
       const data = await response.json();
-      console.log("Fetched categories:", data);
-      setCategories(data);
+      // Sort categories by order
+      const sortedCategories = data.sort((a: Category, b: Category) => a.order - b.order);
+      setCategories(sortedCategories);
       setError(null);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -104,6 +107,11 @@ export default function CategoryManagementPage() {
       }
 
       try {
+        // Calculate the new order (highest existing order + 1)
+        const newOrder = categories.length > 0 
+          ? Math.max(...categories.map(cat => cat.order)) + 1 
+          : 0;
+
         const response = await fetch(`${API_BASE_URL}/api/categories`, {
           method: "POST",
           headers: {
@@ -113,6 +121,7 @@ export default function CategoryManagementPage() {
           body: JSON.stringify({
             name: newCategory.trim(),
             description: newDescription.trim(),
+            order: newOrder,
           }),
         });
 
@@ -129,11 +138,76 @@ export default function CategoryManagementPage() {
       } catch (error) {
         console.error("Error adding category:", error);
         setError(
-          error instanceof Error ? error.message :"Failed to add category"
+          error instanceof Error ? error.message : "Failed to add category"
         );
       }
     }
-  }; 
+  };
+
+  const handleDragEnd = async (result: any) => {
+    if (!result.destination) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+      return;
+    }
+
+    const items = Array.from(categories);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update order for all items
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      order: index,
+    }));
+
+    // Optimistically update the UI
+    setCategories(updatedItems);
+
+    try {
+      // Format the data for the API
+      const reorderData = updatedItems.map((item, idx) => ({
+        id: item._id,
+        order: idx
+      }));
+
+      console.log('Sending reorder data:', reorderData);
+
+      // Update order on the server
+      const response = await fetch(`${API_BASE_URL}/api/categories/reorder`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          categories: reorderData
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Reorder response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update category order");
+      }
+
+      // If successful, update with the returned categories
+      if (data.categories) {
+        setCategories(data.categories);
+      } else {
+        // If no categories returned, refresh from server
+        await fetchCategories(token);
+      }
+    } catch (error) {
+      console.error("Error updating category order:", error);
+      setError(error instanceof Error ? error.message : "Failed to update category order");
+      // Revert to original order on error
+      await fetchCategories(token);
+    }
+  };
 
   const handleEdit = (category: Category) => {
     setEditingId(category._id);
@@ -326,125 +400,151 @@ export default function CategoryManagementPage() {
                         No categories found. Create your first category!
                       </p>
                     ) : (
-                      <div className="space-y-2">
-                        {categories.map((category) => (
-                          <div
-                            key={category._id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border-2 border-black rounded-md hover:bg-yellow-50 gap-4"
-                          >
-                            <div className="flex flex-wrap items-center gap-3">
-                              {editingId === category._id ? (
-                                <div className="space-y-2 w-full">
-                                  <Input
-                                    value={editValue}
-                                    onChange={(e) =>
-                                      setEditValue(e.target.value)
-                                    }
-                                    className="border-2 border-black focus:border-yellow-500 h-8"
-                                    autoFocus
-                                  />
-                                  <Textarea
-                                    placeholder="Category description"
-                                    value={editDescription}
-                                    onChange={(e) =>
-                                      setEditDescription(e.target.value)
-                                    }
-                                    className="border-2 border-black focus:border-yellow-500 resize-none"
-                                    rows={3}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <span className="font-medium text-sm sm:text-base">
-                                    {category.name}
-                                  </span>
-                                  {category.description && (
-                                    <p className="text-sm text-gray-600">
-                                      {category.description}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              <Badge
-                                variant={
-                                  category.status === "published"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                                className={`${
-                                  category.status === "published"
-                                    ? "bg-green-500 text-white"
-                                    : "bg-gray-300 text-black"
-                                }`}
-                              >
-                                {category.status}
-                              </Badge>
-                              <Badge className="bg-yellow-500 text-black">
-                                {category.blogCount}{" "}
-                                {category.blogCount === 1 ? "blog" : "blogs"}
-                              </Badge>
-                            </div>
+                      <DragDropContext onDragEnd={handleDragEnd}>
+                        <Droppable droppableId="categories">
+                          {(provided) => (
+                            <div
+                              {...provided.droppableProps}
+                              ref={provided.innerRef}
+                              className="space-y-2"
+                            >
+                              {categories.map((category, index) => (
+                                <Draggable
+                                  key={category._id}
+                                  draggableId={category._id}
+                                  index={index}
+                                >
+                                  {(provided) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border-2 border-black rounded-md hover:bg-yellow-50 gap-4"
+                                    >
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <div
+                                          {...provided.dragHandleProps}
+                                          className="cursor-grab"
+                                        >
+                                          <GripVertical className="h-5 w-5 text-gray-500" />
+                                        </div>
+                                        {editingId === category._id ? (
+                                          <div className="space-y-2 w-full">
+                                            <Input
+                                              value={editValue}
+                                              onChange={(e) =>
+                                                setEditValue(e.target.value)
+                                              }
+                                              className="border-2 border-black focus:border-yellow-500 h-8"
+                                              autoFocus
+                                            />
+                                            <Textarea
+                                              placeholder="Category description"
+                                              value={editDescription}
+                                              onChange={(e) =>
+                                                setEditDescription(e.target.value)
+                                              }
+                                              className="border-2 border-black focus:border-yellow-500 resize-none"
+                                              rows={3}
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-2">
+                                            <span className="font-medium text-sm sm:text-base">
+                                              {category.name}
+                                            </span>
+                                            {category.description && (
+                                              <p className="text-sm text-gray-600">
+                                                {category.description}
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
+                                        <Badge
+                                          variant={
+                                            category.status === "published"
+                                              ? "default"
+                                              : "secondary"
+                                          }
+                                          className={`${
+                                            category.status === "published"
+                                              ? "bg-green-500 text-white"
+                                              : "bg-gray-300 text-black"
+                                          }`}
+                                        >
+                                          {category.status}
+                                        </Badge>
+                                        <Badge className="bg-yellow-500 text-black">
+                                          {category.blogCount}{" "}
+                                          {category.blogCount === 1 ? "blog" : "blogs"}
+                                        </Badge>
+                                      </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              {editingId === category._id ? (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleSaveEdit(category._id)}
-                                    className="h-8 w-8 text-green-600 hover:bg-green-100"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setEditingId(null)}
-                                    className="h-8 w-8 text-red-600 hover:bg-red-100"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(category)}
-                                    className="h-8 w-8 text-black hover:bg-yellow-100"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => toggleStatus(category._id)}
-                                    className={`h-8 w-8 ${
-                                      category.status === "published"
-                                        ? "text-yellow-600 hover:bg-yellow-100"
-                                        : "text-blue-600 hover:bg-blue-100"
-                                    }`}
-                                  >
-                                    <span className="text-xs sm:text-sm">
-                                      {category.status === "published"
-                                        ? "Draft"
-                                        : "Publish"}
-                                    </span>
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDelete(category._id)}
-                                    className="h-8 w-8 text-red-600 hover:bg-red-100"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {editingId === category._id ? (
+                                          <>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleSaveEdit(category._id)}
+                                              className="h-8 w-8 text-green-600 hover:bg-green-100"
+                                            >
+                                              <Check className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => setEditingId(null)}
+                                              className="h-8 w-8 text-red-600 hover:bg-red-100"
+                                            >
+                                              <X className="h-4 w-4" />
+                                            </Button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleEdit(category)}
+                                              className="h-8 w-8 text-black hover:bg-yellow-100"
+                                            >
+                                              <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => toggleStatus(category._id)}
+                                              className={`h-8 w-8 ${
+                                                category.status === "published"
+                                                  ? "text-yellow-600 hover:bg-yellow-100"
+                                                  : "text-blue-600 hover:bg-blue-100"
+                                              }`}
+                                            >
+                                              <span className="text-xs sm:text-sm">
+                                                {category.status === "published"
+                                                  ? "Draft"
+                                                  : "Publish"}
+                                              </span>
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleDelete(category._id)}
+                                              className="h-8 w-8 text-red-600 hover:bg-red-100"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          )}
+                        </Droppable>
+                      </DragDropContext>
                     )}
                   </div>
                 </CardContent>
