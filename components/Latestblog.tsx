@@ -73,11 +73,14 @@ const BlogSection = () => {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
+      // Skip first 3 blogs
+      const remainingBlogs = blogsArray.slice(3);
+
       // Check if we have more blogs to load
-      setHasMore(blogsArray.length === 10);
+      setHasMore(remainingBlogs.length === 10);
 
       // Transform the data to include readTime
-      const transformedBlogs = blogsArray
+      const transformedBlogs = remainingBlogs
         .map((blog: any) => ({
           ...blog,
           readTime: `${Math.ceil(blog.description.split(' ').length / 200)} min read`

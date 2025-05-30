@@ -45,12 +45,10 @@ const SearchSection = () => {
         // Handle both array and object response formats
         const postsArray = Array.isArray(data) ? data : data.blogs || [];
         
-        // Get random 3 posts
-        const randomPosts = postsArray
-          .sort(() => 0.5 - Math.random())
-          .slice(0, 3);
+        // Get first 3 posts instead of random
+        const firstThreePosts = postsArray.slice(0, 3);
         
-        setPosts(randomPosts);
+        setPosts(firstThreePosts);
       } catch (error) {
         console.error("Error fetching random posts:", error);
       } finally {
