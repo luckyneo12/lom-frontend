@@ -5,7 +5,9 @@ import BlogPostClient from "./BlogPostClient";
 async function fetchBlogPost(slug: string) {
   const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
   try {
-    const response = await fetch(`${apiUrl}/api/blog/slug/${slug}`);
+    const response = await fetch(`${apiUrl}/api/blog/slug/${slug}`, {
+      cache: 'no-store'
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch blog post: ${response.status} ${response.statusText}`);
     }
@@ -17,26 +19,33 @@ async function fetchBlogPost(slug: string) {
   }
 }
 
-// Dynamic metadata function
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
-  const post = await fetchBlogPost(slug);
-  return {
-    title: post.meta.meta_title,
-    description: post.meta.meta_description,
-    openGraph: {
-      title: post.meta.meta_title,
-      description: post.meta.meta_description,
-      images: [post.mainImage],
-    },
-  };
+type Props = {
+  params: { slug: string }
+  searchParams: { [key: string]: string | string[] | undefined }
 }
 
-export default async function BlogPostPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
+// Dynamic metadata function
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  try {
+    const post = await fetchBlogPost(params.slug);
+    return {
+      title: post.meta?.meta_title || post.title,
+      description: post.meta?.meta_description || post.description,
+      openGraph: {
+        title: post.meta?.meta_title || post.title,
+        description: post.meta?.meta_description || post.description,
+        images: post.mainImage ? [post.mainImage] : [],
+      },
+    };
+  } catch (error) {
+    return {
+      title: 'Blog Post',
+      description: 'Read our latest blog post',
+    };
+  }
+}
+
+export default async function BlogPostPage(props: Props) {
+  const slug = props.params.slug;
   return <BlogPostClient slug={slug} />;
 }

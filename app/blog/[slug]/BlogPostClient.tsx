@@ -51,6 +51,26 @@ interface BlogPostClientProps {
   slug: string;
 }
 
+async function fetchBlogPost(slug: string) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+  try {
+    const response = await fetch(`${apiUrl}/api/blog/slug/${slug}`, { cache: 'no-store' });
+    if (!response.ok) {
+      console.error('API error:', response.status, response.statusText);
+      throw new Error(`Failed to fetch blog post: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    if (!data.blog) {
+      console.error('No blog data found for slug:', slug, data);
+      throw new Error('Blog post data is missing');
+    }
+    return data.blog;
+  } catch (error) {
+    console.error('Error fetching blog post:', error);
+    throw error;
+  }
+}
+
 export default function BlogPostClient({ slug }: BlogPostClientProps) {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,24 +81,10 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/blog/slug/${slug}`,
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-          }
-        );
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to fetch blog post");
-        }
-        
-        const data = await response.json();
-        setPost(data.blog);
+        const data = await fetchBlogPost(slug);
+        setPost(data);
       } catch (err) {
+        console.error('Error fetching blog post:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
         toast({
           title: "Error",
