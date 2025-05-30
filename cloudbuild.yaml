@@ -576,58 +576,184 @@
 
 
 # ==========================
-# with final solution 
+# with final solution timeout issue Retrying 1/3...
+# Retrying 3/3...
+# [AggregateError: ] { code: 'ETIMEDOUT' }
+
+# steps:
+#   # Step 0: Delete all lom_frontend_backup_* folders except the most recent
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '🧹 Keeping only the most recent backup, deleting all others...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
+#           cd /home/${_INSTANCE_USER} && \
+#           backup_dirs=(\$(ls -d lom_frontend_backup_* 2>/dev/null | sort)) && \
+#           count=\${#backup_dirs[@]} && \
+#           if [ \$count -le 1 ]; then \
+#             echo '📦 Only one or zero backups exist. Nothing to delete.'; \
+#           else \
+#             recent=\${backup_dirs[\$count-1]}; \
+#             echo '🛡️ Keeping:' \$recent; \
+#             for dir in \"\${backup_dirs[@]}\"; do \
+#               if [ \"\$dir\" != \"\$recent\" ]; then \
+#                 echo '🗑️ Deleting:' \$dir && rm -rf \"\$dir\" || echo '⚠️ Failed to delete' \$dir; \
+#               fi; \
+#             done; \
+#           fi" || true
+
+#   # Step 1: Clean previous NEW folder
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '🧹 Cleaning previous NEW build folder...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="rm -rf /home/${_INSTANCE_USER}/lom_frontend_new"
+
+#   # Step 2: Upload frontend contents only (no nesting)
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '📤 Uploading latest code to NEW folder...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="mkdir -p /home/${_INSTANCE_USER}/lom_frontend_new"
+#         gcloud compute scp --recurse ./* ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/lom_frontend_new --zone=${_ZONE}
+
+#   # Step 3: Fetch secrets and create .env
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '🔐 Creating .env...'
+#         if [[ "${_ENV_TYPE}" == "production" ]]; then
+#           env="prod"
+#         else
+#           env="dev"
+#         fi
+
+#         next_public_api_url=$(gcloud secrets versions access latest --secret="${env}-lom-next_public_api_url")
+
+#         echo "NEXT_PUBLIC_API_BASE_URL=$next_public_api_url" > temp.env
+#         gcloud compute scp temp.env ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/lom_frontend_new/.env --zone=${_ZONE}
+#         rm temp.env
+
+#   # Step 4: Install dependencies & build
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '⚙️ Building frontend...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
+#           cd /home/${_INSTANCE_USER}/lom_frontend_new && \
+#           npm install -f && \
+#           npm run build"
+
+#   # Step 5: Health check on port 3001 (temp PM2)
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '🚦 Starting temp health check...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
+#           cd /home/${_INSTANCE_USER}/lom_frontend_new && \
+#           PORT=3001 pm2 start npm --name health-check-temp -- start"
+
+#         echo '⏳ Waiting...'; sleep 10
+
+#         echo '🔍 Running health check...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="curl -f http://localhost:3001"
+#         if [ $? -ne 0 ]; then
+#           echo '❌ Health check failed'
+#           gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="pm2 delete health-check-temp || true"
+#           exit 1
+#         fi
+
+#         echo '✅ Health check passed!'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="pm2 delete health-check-temp || true"
+
+#   # Step 6: Backup LIVE folder
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '📦 Backing up LIVE folder...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
+#           if [ -d /home/${_INSTANCE_USER}/lom_frontend_live ]; then \
+#             timestamp=$(date +\"%Y-%m-%d_%H-%M-%S\") && \
+#             mv /home/${_INSTANCE_USER}/lom_frontend_live /home/${_INSTANCE_USER}/lom_frontend_backup_\$timestamp && \
+#             echo '✅ Backup created'; \
+#           else \
+#             echo 'ℹ️ No LIVE folder to backup'; \
+#           fi"
+
+#   # Step 7: Replace LIVE with NEW
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo '🔁 Deploying NEW to LIVE...'
+#         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
+#           pm2 delete lom-frontend || true && \
+#           mv /home/${_INSTANCE_USER}/lom_frontend_new /home/${_INSTANCE_USER}/lom_frontend_live && \
+#           cd /home/${_INSTANCE_USER}/lom_frontend_live && \
+#           pm2 restart lom-frontend || PORT=3000 pm2 start npm --name lom-frontend -- start"
+
+# options:
+#   logging: CLOUD_LOGGING_ONLY
+
+# substitutions:
+#   _INSTANCE_USER: 'icreativefuel'
+#   _INSTANCE_NAME: 'lom-server'
+#   _ZONE: 'us-central1-a'
+#   _ENV_TYPE: 'production'
+
+# =============== 
+# upgraded version 
 
 steps:
-  # Step 0: Delete all lom_frontend_backup_* folders except the most recent
+  # Step 1: Backup existing LIVE folder
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo '🧹 Keeping only the most recent backup, deleting all others...'
+        echo '📦 Backing up existing LIVE folder...'
         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
           cd /home/${_INSTANCE_USER} && \
-          backup_dirs=(\$(ls -d lom_frontend_backup_* 2>/dev/null | sort)) && \
-          count=\${#backup_dirs[@]} && \
-          if [ \$count -le 1 ]; then \
-            echo '📦 Only one or zero backups exist. Nothing to delete.'; \
+          if [ -d ${_FRONTEND_FOLDER} ]; then \
+            timestamp=$(date +\"%Y-%m-%d_%H-%M-%S\") && \
+            mv ${_FRONTEND_FOLDER} lom_frontend_backup_\$timestamp && \
+            echo '✅ Backup created.'; \
           else \
-            recent=\${backup_dirs[\$count-1]}; \
-            echo '🛡️ Keeping:' \$recent; \
-            for dir in \"\${backup_dirs[@]}\"; do \
-              if [ \"\$dir\" != \"\$recent\" ]; then \
-                echo '🗑️ Deleting:' \$dir && rm -rf \"\$dir\" || echo '⚠️ Failed to delete' \$dir; \
-              fi; \
-            done; \
-          fi" || true
+            echo 'ℹ️ No existing folder to backup.'; \
+          fi"
 
-  # Step 1: Clean previous NEW folder
+  # Step 2: Upload entire frontend codebase to VM (clean)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo '🧹 Cleaning previous NEW build folder...'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="rm -rf /home/${_INSTANCE_USER}/lom_frontend_new"
+        echo '📤 Uploading project to VM...'
+        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="rm -rf /home/${_INSTANCE_USER}/${_FRONTEND_FOLDER}"
+        gcloud compute scp --recurse $(pwd) ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/${_FRONTEND_FOLDER} --zone=${_ZONE}
 
-  # Step 2: Upload frontend contents only (no nesting)
+  # Step 3: Fetch secrets and generate .env on VM
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo '📤 Uploading latest code to NEW folder...'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="mkdir -p /home/${_INSTANCE_USER}/lom_frontend_new"
-        gcloud compute scp --recurse ./* ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/lom_frontend_new --zone=${_ZONE}
-
-  # Step 3: Fetch secrets and create .env
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo '🔐 Creating .env...'
+        echo '🔐 Generating .env file...'
         if [[ "${_ENV_TYPE}" == "production" ]]; then
           env="prod"
         else
@@ -637,72 +763,20 @@ steps:
         next_public_api_url=$(gcloud secrets versions access latest --secret="${env}-lom-next_public_api_url")
 
         echo "NEXT_PUBLIC_API_BASE_URL=$next_public_api_url" > temp.env
-        gcloud compute scp temp.env ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/lom_frontend_new/.env --zone=${_ZONE}
+        gcloud compute scp temp.env ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/${_FRONTEND_FOLDER}/.env --zone=${_ZONE}
         rm temp.env
 
-  # Step 4: Install dependencies & build
+  # Step 4: Install, build, and restart with PM2
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo '⚙️ Building frontend...'
+        echo '🚀 Installing, building and restarting the app...'
         gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
-          cd /home/${_INSTANCE_USER}/lom_frontend_new && \
+          cd /home/${_INSTANCE_USER}/${_FRONTEND_FOLDER} && \
           npm install -f && \
-          npm run build"
-
-  # Step 5: Health check on port 3001 (temp PM2)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo '🚦 Starting temp health check...'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
-          cd /home/${_INSTANCE_USER}/lom_frontend_new && \
-          PORT=3001 pm2 start npm --name health-check-temp -- start"
-
-        echo '⏳ Waiting...'; sleep 10
-
-        echo '🔍 Running health check...'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="curl -f http://localhost:3001"
-        if [ $? -ne 0 ]; then
-          echo '❌ Health check failed'
-          gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="pm2 delete health-check-temp || true"
-          exit 1
-        fi
-
-        echo '✅ Health check passed!'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="pm2 delete health-check-temp || true"
-
-  # Step 6: Backup LIVE folder
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo '📦 Backing up LIVE folder...'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
-          if [ -d /home/${_INSTANCE_USER}/lom_frontend_live ]; then \
-            timestamp=$(date +\"%Y-%m-%d_%H-%M-%S\") && \
-            mv /home/${_INSTANCE_USER}/lom_frontend_live /home/${_INSTANCE_USER}/lom_frontend_backup_\$timestamp && \
-            echo '✅ Backup created'; \
-          else \
-            echo 'ℹ️ No LIVE folder to backup'; \
-          fi"
-
-  # Step 7: Replace LIVE with NEW
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo '🔁 Deploying NEW to LIVE...'
-        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
-          pm2 delete lom-frontend || true && \
-          mv /home/${_INSTANCE_USER}/lom_frontend_new /home/${_INSTANCE_USER}/lom_frontend_live && \
-          cd /home/${_INSTANCE_USER}/lom_frontend_live && \
+          npm run build && \
           pm2 restart lom-frontend || PORT=3000 pm2 start npm --name lom-frontend -- start"
 
 options:
@@ -712,4 +786,6 @@ substitutions:
   _INSTANCE_USER: 'icreativefuel'
   _INSTANCE_NAME: 'lom-server'
   _ZONE: 'us-central1-a'
+  _FRONTEND_FOLDER: 'lom_frontend'
   _ENV_TYPE: 'production'
+
