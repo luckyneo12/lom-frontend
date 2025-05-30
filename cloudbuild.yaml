@@ -286,7 +286,7 @@
 
 
 steps:
-  # Step 0: Delete all lom_frontend_backup_* folders except the most recent one
+  # Step 0: Delete all lom_frontend_backup_* folders except the most recent one (safe delete with fallback)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -303,9 +303,11 @@ steps:
             recent=\${backup_dirs[\$count-1]}; \
             echo '🛡️ Keeping:' \$recent; \
             for dir in \"\${backup_dirs[@]}\"; do \
-              [ \"\$dir\" != \"\$recent\" ] && echo '🗑️ Deleting:' \$dir && rm -rf \"\$dir\"; \
+              if [ \"\$dir\" != \"\$recent\" ]; then \
+                echo '🗑️ Deleting:' \$dir && rm -rf \"\$dir\" || echo '⚠️ Warning: Failed to delete' \$dir; \
+              fi; \
             done; \
-          fi"
+          fi" || true
 
   # Step 1: Clean up previous NEW folder
   - name: 'gcr.io/cloud-builders/gcloud'
