@@ -286,6 +286,21 @@
 
 
 steps:
+  # Step 0: Delete all lom_frontend_backup_* folders except the most recent one
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo '🧹 Keeping only the most recent backup, deleting the rest...'
+        gcloud compute ssh ${_INSTANCE_USER}@${_INSTANCE_NAME} --zone=${_ZONE} --command="\
+          cd /home/${_INSTANCE_USER} && \
+          recent_backup=\$(ls -d lom_frontend_backup_* 2>/dev/null | sort | tail -n 1) && \
+          echo '🛡️ Keeping:' \$recent_backup && \
+          for dir in lom_frontend_backup_*; do \
+            [ \"\$dir\" != \"\$recent_backup\" ] && rm -rf \"\$dir\"; \
+          done"
+
   # Step 1: Clean up previous NEW folder
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
@@ -325,7 +340,7 @@ steps:
         gcloud compute scp temp.env ${_INSTANCE_USER}@${_INSTANCE_NAME}:/home/${_INSTANCE_USER}/lom_frontend_new/.env --zone=${_ZONE}
         rm temp.env
 
-  # ✅ Step 4: Clean disk, install dependencies, and build in NEW folder
+  # Step 4: Clean disk, install dependencies, and build in NEW folder
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
