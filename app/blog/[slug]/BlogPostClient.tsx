@@ -52,26 +52,6 @@ interface BlogPostClientProps {
   post: BlogPost;
 }
 
-async function fetchBlogPost(slug: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-  try {
-    const response = await fetch(`${apiUrl}/api/blog/slug/${slug}`, { cache: 'no-store' });
-    if (!response.ok) {
-      console.error('API error:', response.status, response.statusText);
-      throw new Error(`Failed to fetch blog post: ${response.status} ${response.statusText}`);
-    }
-    const data = await response.json();
-    if (!data.blog) {
-      console.error('No blog data found for slug:', slug, data);
-      throw new Error('Blog post data is missing');
-    }
-    return data.blog;
-  } catch (error) {
-    console.error('Error fetching blog post:', error);
-    throw error;
-  }
-}
-
 export default function BlogPostClient({ slug, post }: BlogPostClientProps) {
   const [activeId, setActiveId] = useState<string>("");
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
@@ -102,6 +82,28 @@ export default function BlogPostClient({ slug, post }: BlogPostClientProps) {
   // Table of Contents IDs
   const sectionIds = post.sections?.map((_, i) => `section-${i}`) || [];
 
+  // Format date safely
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
+    }
+  };
+
+  if (!post) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading blog post...</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="bg-white min-h-screen font-sans px-3 scroll-smooth">
@@ -131,15 +133,7 @@ export default function BlogPostClient({ slug, post }: BlogPostClientProps) {
         {/* Meta Info */}
         <div className="flex items-center text-gray-500 text-xs space-x-2 mt-6 max-w-6xl mx-auto">
           <FaRegCalendarAlt />
-          <span>
-            {post.createdAt
-              ? new Date(post.createdAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "2-digit",
-                })
-              : "No date"}
-          </span>
+          <span>{formatDate(post.createdAt)}</span>
           <FaRegClock />
           <span>12 Min read</span>
         </div>

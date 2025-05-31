@@ -9,14 +9,19 @@ async function fetchBlogPost(slug: string) {
     const response = await fetch(`${apiUrl}/api/blog/slug/${slug}`, {
       cache: 'no-store'
     });
+    
     if (!response.ok) {
       if (response.status === 404) {
         notFound();
       }
       throw new Error(`Failed to fetch blog post: ${response.status} ${response.statusText}`);
     }
+    
     const data = await response.json();
-    return data.blog; // Extract blog object from response
+    if (!data.blog) {
+      throw new Error('Blog post data is missing');
+    }
+    return data.blog;
   } catch (error) {
     console.error("Error fetching blog post:", error);
     throw error;
@@ -24,31 +29,28 @@ async function fetchBlogPost(slug: string) {
 }
 
 type Props = {
-  params: Promise<{ slug: string }>
+  params: { slug: string }
   searchParams: { [key: string]: string | string[] | undefined }
 }
 
 // Viewport configuration
-export async function generateViewport(): Promise<Viewport> {
-  return {
-    width: 'device-width',
-    initialScale: 1,
-    themeColor: '#ffffff',
-    viewportFit: 'cover'
-  };
-}
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#ffffff',
+  viewportFit: 'cover'
+};
 
 // Dynamic metadata function
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params;
   try {
-    const post = await fetchBlogPost(resolvedParams.slug);
+    const post = await fetchBlogPost(params.slug);
     return {
-      title: post.meta?.meta_title || post.title,
-      description: post.meta?.meta_description || post.description,
+      title: post.meta?.meta_title || post.title || 'Blog Post',
+      description: post.meta?.meta_description || post.description || 'Read our latest blog post',
       openGraph: {
-        title: post.meta?.meta_title || post.title,
-        description: post.meta?.meta_description || post.description,
+        title: post.meta?.meta_title || post.title || 'Blog Post',
+        description: post.meta?.meta_description || post.description || 'Read our latest blog post',
         images: post.mainImage ? [post.mainImage] : [],
       },
       robots: {
@@ -57,6 +59,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       }
     };
   } catch (error) {
+    console.error("Error generating metadata:", error);
     return {
       title: 'Blog Post',
       description: 'Read our latest blog post',
@@ -69,7 +72,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const resolvedParams = await params;
-  const post = await fetchBlogPost(resolvedParams.slug);
-  return <BlogPostClient slug={resolvedParams.slug} post={post} />;
+  try {
+    const post = await fetchBlogPost(params.slug);
+    return <BlogPostClient slug={params.slug} post={post} />;
+  } catch (error) {
+    console.error("Error in BlogPostPage:", error);
+    throw error;
+  }
 }
