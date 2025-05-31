@@ -49,6 +49,7 @@ interface BlogPost {
 
 interface BlogPostClientProps {
   slug: string;
+  post: BlogPost;
 }
 
 async function fetchBlogPost(slug: string) {
@@ -71,32 +72,9 @@ async function fetchBlogPost(slug: string) {
   }
 }
 
-export default function BlogPostClient({ slug }: BlogPostClientProps) {
-  const [post, setPost] = useState<BlogPost | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function BlogPostClient({ slug, post }: BlogPostClientProps) {
   const [activeId, setActiveId] = useState<string>("");
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchPost = async () => {
-      try {
-        const data = await fetchBlogPost(slug);
-        setPost(data);
-      } catch (err) {
-        console.error('Error fetching blog post:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        toast({
-          title: "Error",
-          description: err instanceof Error ? err.message : "Failed to fetch blog post",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPost();
-  }, [slug]);
 
   // Intersection observer for ToC highlight
   useEffect(() => {
@@ -120,46 +98,6 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
       });
     };
   }, [post?.sections]);
-
-  if (loading) {
-    return (
-      <>
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
-            <div className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (error || !post) {
-    return (
-      <>
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Blog Post Not Found</h1>
-            <p className="text-gray-600 mb-4">
-              The blog post you're looking for doesn't exist or has been removed.
-            </p>
-            <Link href="/blog" passHref>
-              <Button variant="outline" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Blog
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </>
-    );
-  }
 
   // Table of Contents IDs
   const sectionIds = post.sections?.map((_, i) => `section-${i}`) || [];
@@ -224,10 +162,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
               alt={post.title}
               className="w-full rounded-md h-[500px] object-cover transform transition-transform duration-500 shadow-lg cursor-pointer"
             />
-          ) : (
-            <>
-            </>
-          )}
+          ) : null}
         </div>
 
         {/* Layout: Sidebar + Blog */}
@@ -265,7 +200,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className=" h-10 w-10  justify-center flex items-center border rounded-full bg-black cursor-pointer transform hover:scale-110 hover:shadow-xl hover:text-yellow-400 transition-all duration-300"
+                  className="h-10 w-10 justify-center flex items-center border rounded-full bg-black cursor-pointer transform hover:scale-110 hover:shadow-xl hover:text-yellow-400 transition-all duration-300"
                 >
                   <Icon />
                 </Link>
@@ -292,7 +227,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
                   <img
                     src={section.section_img}
                     alt={section.section_title}
-                    className="object-cover w-full h-[300px] md:h-[400px] rounded-md transform  transition-transform duration-500 shadow-md cursor-pointer"
+                    className="object-cover w-full h-[300px] md:h-[400px] rounded-md transform transition-transform duration-500 shadow-md cursor-pointer"
                   />
                 )}
                 {section.section_list && section.section_list.length > 0 && (
