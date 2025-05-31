@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "./Header/Header";
 import Footer from "./Footer/Footer";
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+// Get the site URL from environment variable or use a default
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://legendofmarketing.com';
 
 export const metadata: Metadata = {
   title: {
@@ -19,14 +25,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://legendofmarketing.com'),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://legendofmarketing.com',
+    url: siteUrl,
     siteName: 'Legend Of Marketing',
     title: 'Legend Of Marketing(LOM)',
     description: 'Marketing That Moves. Legends That Inspire',
@@ -59,11 +65,40 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: 'your-google-site-verification',
-    yandex: 'your-yandex-verification',
-    yahoo: 'your-yahoo-verification',
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '',
+    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || '',
+    yahoo: process.env.NEXT_PUBLIC_YAHOO_VERIFICATION || '',
   },
   category: 'marketing',
+  icons: {
+    icon: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-256x256.png', sizes: '256x256', type: 'image/png' },
+      { url: '/icon-384x384.png', sizes: '384x384', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/placeholder-logo.svg',
+      },
+    ],
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Legend of Marketing',
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({
@@ -81,7 +116,7 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#ffffff" />
       </head>
-      <body>
+      <body className={inter.className}>
         <div className="flex flex-col min-h-screen justify-between">
           <Navbar />
           {children}
