@@ -6,6 +6,9 @@ import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
+// Get the site URL from environment variable or use a default
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://legendofmarketing.com';
+
 export const metadata: Metadata = {
   title: {
     default: "Legend Of Marketing(LOM)",
@@ -22,14 +25,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://legendofmarketing.com'),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://legendofmarketing.com',
+    url: siteUrl,
     siteName: 'Legend Of Marketing',
     title: 'Legend Of Marketing(LOM)',
     description: 'Marketing That Moves. Legends That Inspire',
@@ -62,9 +65,9 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: 'your-google-site-verification',
-    yandex: 'your-yandex-verification',
-    yahoo: 'your-yahoo-verification',
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '',
+    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || '',
+    yahoo: process.env.NEXT_PUBLIC_YAHOO_VERIFICATION || '',
   },
   category: 'marketing',
   icons: {
